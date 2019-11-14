@@ -171,6 +171,7 @@ echo ...the total number is: ${#Ifs[@]}
 QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
 QNet="${QSubnet}/${QNetCIDR}"
 QNetBCAST=$(echo $(bcastaddr $QSubnet $QSubnetMask))
+QSubnetRANGE="192.168.200.20 192.168.200.200"
 
 if [ ${#Ifs[@]} > 1 ] 
 then
@@ -240,7 +241,7 @@ if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
     default-lease-time 7200;
     max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
     echo ' 
-    subnet '$QSubnet' netmask '$SubnetMask' {
+    subnet '$QSubnet' netmask '$QSubnetMask' {
         option routers '$QNetGW';
         option subnet-mask '$QSubnetMask';
         range '$QNetRANGE';
@@ -273,7 +274,7 @@ www             IN      CNAME   @
 fi
 chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 
-docker_run = ' \
+docker_run = "\
 docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
@@ -281,23 +282,35 @@ docker run  -d --rm \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
-msalimov/local:latest'
+msalimov/local:latest"
 
 
 echo $docker_run
-$(${docker_run})
+docker run  -d --rm \
+--mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
+--mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
+--mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
+--network ntb.q \
+--user $(id -u ${QSubdomain}) \
+--ip $dns_ip \
+msalimov/local:latest
 
 if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
 fi
 
-docker_run = ' \
+docker_run = "\
 docker run -d --rm \
 --mount type=bind,source="$(pwd)/step/",target=/home/step/ \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $cacli_ip \
-smallstep/step-cli'
+smallstep/step-cli"
 
 echo $docker_run
-$($(docker_run))
+docker run -d --rm \
+--mount type=bind,source="$(pwd)/step/",target=/home/step/ \
+--network ntb.q \
+--user $(id -u ${QSubdomain}) \
+--ip $cacli_ip \
+smallstep/step-cli
