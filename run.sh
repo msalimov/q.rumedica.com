@@ -4,7 +4,7 @@
 export QSubnet="192.168.200.0"
 export QSubnetMask="255.255.255.0"
 export QNetGW="192.168.200.254"
-export QNetVlan="200"
+export QNetVlan=""
 export QSubdomain="salavatmed"
 
 
@@ -157,16 +157,16 @@ case "${unameOut}" in
         machine="UNKNOWN:${unameOut}"
         exit 1
 esac
-} || {
+# } || {
 
 
 }
+reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
+echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
 echo Machine: $machine
 echo Network interfaces: ${Ifs[@]} 
 echo ...the total number is: ${#Ifs[@]}
-reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
-echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
 QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
 QNet="${QSubnet}/${QNetCIDR}"
@@ -197,7 +197,7 @@ echo Docker network parent interface is: $iface
 ntbq_net=$(docker network ls | grep ntb.q)
 echo $ntbq_net
 
-if [ -n $ntbq_net ]
+if [ -z ${ntbq_net} ]
 then
     docker network create -d macvlan \
         --subnet=$QNet --gateway=$QNetGW \
