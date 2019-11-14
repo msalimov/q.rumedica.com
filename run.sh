@@ -273,23 +273,31 @@ www             IN      CNAME   @
 fi
 chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 
+docker_run = "
 docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
 --network ntb.q \
---user $(id ${QSubdomain}) \
+--user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
 msalimov/local:latest
+"
+
+echo $docker_run
+$(${docker_run})
 
 if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
 fi
 
+docker_run = "
 docker run -d --rm \
 --mount type=bind,source="$(pwd)/step/",target=/home/step/ \
 --network ntb.q \
---user $(id ${QSubdomain}) \
+--user $(id -u ${QSubdomain}) \
 --ip $cacli_ip \
 smallstep/step-cli
-
+"
+echo $docker_run
+$($(docker_run))
