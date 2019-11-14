@@ -7,6 +7,7 @@ export QNetGW="192.168.200.254"
 export QNetVlan="200"
 export QSubdomain="salavatmed"
 
+
 ReservedIPs=""
 
 # Function calculates number of bit in a netmask
@@ -63,7 +64,6 @@ bcastaddr () {
 }
 
 nexthost() {
-#    echo "Nexthost input 1:" $1 $2 "IFS:" ${IFS}
     old_IFS=$IFS
     IFS="."
     i=0
@@ -113,18 +113,8 @@ reserveip() {
     echo "$ReservedIPs"
 }
 
-# echo "Nexthost test..."
-# newip=$( nexthost $QSubnet $QSubnetMask )
-# echo "given ip :" $newip
 
-reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
-echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
-
-QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
-QNet="${QSubnet}/${QNetCIDR}"
-QNetBCAST=$(echo $(bcastaddr $QSubnet $QSubnetMask))
-
-
+if [[ $UID -ne 0 ]]; then echo "Please run $0 as root." && exit 1; fi
 
 err_docker=$(docker version >/dev/null 2>&1)
 echo $err_docker
@@ -136,23 +126,51 @@ fi
 
 unameOut="$(uname -s)"
 Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
+{
 case "${unameOut}" in
     Linux*)     
         machine=Linux
         Ifs=($(find /sys/class/net -type l -not -lname '*virtual*' -printf '%f\n'))
+        useradd -m  -U ${QSubdomain}
+        cd /home/${QSubdomain}
        ;;
     Darwin*)    
         machine=Mac
         Ifs=($(networksetup -listdevicesthatsupportVLAN | sed 's/([^)]*)//g'))
+        MAXID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -ug | tail -1)
+        USERID=$((MAXID+1))
+
+        # Create the user account
+        dscl . -create /Users/${QSubdomain}
+        dscl . -create /Users/${QSubdomain} UserShell /bin/bash
+        dscl . -create /Users/${QSubdomain} RealName "rumedica.com client"
+        dscl . -create /Users/${QSubdomain} UniqueID "$USERID"
+        dscl . -create /Users/${QSubdomain} PrimaryGroupID 20
+        dscl . -create /Users/${QSubdomain} NFSHomeDirectory /Users/${QSubdomain}
+
+        dscl . -passwd /Users/${QSubdomain} "\$tarW@rs2019"
+        # dseditgroup -o edit -t user -a $QSubdomain $GROUP
+        createhomedir -c > /dev/null
+        cd /Users/${QSubdomain}
         ;;
     *)
         machine="UNKNOWN:${unameOut}"
         exit 1
 esac
+} || {
+
+
+}
 
 echo Machine: $machine
 echo Network interfaces: ${Ifs[@]} 
 echo ...the total number is: ${#Ifs[@]}
+reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
+echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
+
+QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
+QNet="${QSubnet}/${QNetCIDR}"
+QNetBCAST=$(echo $(bcastaddr $QSubnet $QSubnetMask))
 
 if [ ${#Ifs[@]} > 1 ] 
 then
@@ -254,11 +272,23 @@ www             IN      CNAME   @
 '  > $(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone
 fi
 
-docker run  -it --rm \
+docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
 --network "ntb.q" \
+--user $(id ${QSubdomain}) \
 --ip $dns_ip \
 msalimov/local:latest
+
+if [ ! -d "${pwd}/step/" ] ; then
+    mkdir -p $(pwd)/step/
+fi
+
+docker run -d --rm \
+--mount type=bind,source="$(pwd)/step/", target=/home/step/ \
+--network "ntb.q" \
+--user $(id ${QSubdomain}) \
+--ip $cacli_ip \
+smallstep/step-cli
 
