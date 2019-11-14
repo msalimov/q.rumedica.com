@@ -126,7 +126,7 @@ fi
 
 unameOut="$(uname -s)"
 Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
-{
+
 case "${unameOut}" in
     Linux*)     
         machine=Linux
@@ -160,7 +160,7 @@ esac
 # } || {
 
 
-}
+
 reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
 echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
@@ -197,7 +197,7 @@ echo Docker network parent interface is: $iface
 ntbq_net=$(docker network ls | grep ntb.q)
 echo $ntbq_net
 
-if [ -z ${ntbq_net} ]
+if [ -z $ntbq_net ]
 then
     docker network create -d macvlan \
         --subnet=$QNet --gateway=$QNetGW \
@@ -209,7 +209,7 @@ then
     fi
 fi
 
-if [ ! -d "${pwd}/etc/bind/" ]; then
+if [[ ! -d "${pwd}/etc/bind/" ]]; then
     mkdir -p $(pwd)/etc/bind/
 fi
 if [ ! -f "$(pwd)/etc/bind/named.conf" ]; then
@@ -231,7 +231,7 @@ if [ ! -f "$(pwd)/etc/bind/named.conf" ]; then
     };' >> $(pwd)/etc/bind/named.conf
 fi
 
-if [ ! -d "${pwd}/etc/dhcp/" ]; then
+if [[ ! -d "$(pwd)/etc/dhcp/" ]]; then
     mkdir -p $(pwd)/etc/dhcp/
 fi
 if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
@@ -250,10 +250,10 @@ if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
         option domain-search "'$QSubdomain'.rumedica.com";
     ' >> $(pwd)/etc/dhcp/dhcpd.conf
 fi
-if [ ! -d "${pwd}/var/lib/bind/" ]; then
+if [ ! -d "$(pwd)/var/lib/bind/" ]; then
     mkdir -p $(pwd)/var/lib/bind/
 fi
-if [ ! -f "${pwd}/var/lib/bind/${QSubdomain}.rumedica.com.zone" ]; then
+if [ ! -f "$(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone" ]; then
 echo '
 $TTL 1d
 @ IN SOA ns1.'$QSubdomain'.rumedica.com. '$QSubdomain'.rumedica.com. (
@@ -271,23 +271,24 @@ cacli           IN      A               '$cacli_ip'
 www             IN      CNAME   @
 '  > $(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone
 fi
+chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 
 docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
---network "ntb.q" \
+--network ntb.q \
 --user $(id ${QSubdomain}) \
 --ip $dns_ip \
 msalimov/local:latest
 
-if [ ! -d "${pwd}/step/" ] ; then
+if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
 fi
 
 docker run -d --rm \
---mount type=bind,source="$(pwd)/step/", target=/home/step/ \
---network "ntb.q" \
+--mount type=bind,source="$(pwd)/step/",target=/home/step/ \
+--network ntb.q \
 --user $(id ${QSubdomain}) \
 --ip $cacli_ip \
 smallstep/step-cli
