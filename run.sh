@@ -9,6 +9,7 @@ export QSubdomain="salavatmed"
 
 
 ReservedIPs=""
+CurrentDIR = "$(dirname "$0")"
 
 # Function calculates number of bit in a netmask
 #
@@ -286,7 +287,7 @@ chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 chmod -R 660 ${QSubdomain}
 usermod -a -G ${QSubdomain} root
 
-echo "#/bin/bash" > $(pwd)/startup.sh
+echo "#/bin/bash" > ${CurrentDIR}/startup.sh
 echo "docker run  -d --rm \
 --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
@@ -296,9 +297,9 @@ echo "docker run  -d --rm \
 --user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
 --name localnet \
-msalimov/local:latest" >> $(pwd)/startup.sh
+msalimov/local:latest" >> ${CurrentDIR}/startup.sh
 
-docker run  -it --rm \
+docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
@@ -315,7 +316,7 @@ echo "docker run -d --rm \
 --user $(id -u ${QSubdomain}) \
 --ip $cacli_ip \
 --name cacli \
-smallstep/step-cli" >> $(pwd)/startup.sh
+smallstep/step-cli" >> ${CurrentDIR}/startup.sh
 
 docker run -d --rm \
 --mount type=bind,source="$(pwd)/step/",target=/home/step/ \
@@ -325,9 +326,9 @@ docker run -d --rm \
 --name cacli \
 smallstep/step-cli
 
-echo "#/bin/bash" > $(pwd)/destroy.sh
+echo "#/bin/bash" > ${CurrentDIR}/destroy.sh
 echo "docker stop cacli 
 docker stop localnet
 docker network rm ntb.q
 userdel -r ${QSubdomain}
-groupdel ${QSubdomain}" >> $(pwd)/destroy.sh
+groupdel ${QSubdomain}" >> ${CurrentDIR}/destroy.sh
