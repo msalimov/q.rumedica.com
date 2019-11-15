@@ -9,7 +9,7 @@ export QSubdomain="salavatmed"
 
 
 ReservedIPs=""
-CurrentDIR="$(dirname "$0")"
+CurrentDIR=$(cd `dirname $0` && pwd)
 
 # Function calculates number of bit in a netmask
 #
