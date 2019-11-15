@@ -171,7 +171,7 @@ echo ...the total number is: ${#Ifs[@]}
 QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
 QNet="${QSubnet}/${QNetCIDR}"
 QNetBCAST=$(echo $(bcastaddr $QSubnet $QSubnetMask))
-QSubnetRANGE="192.168.200.20 192.168.200.200"
+QNetRANGE="192.168.200.20 192.168.200.200"
 
 if [ ${#Ifs[@]} > 1 ] 
 then
@@ -249,11 +249,17 @@ if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
         option domain-name-servers '$dns_ip';
         option domain-name "'$QSubdomain'.rumedica.com";
         option domain-search "'$QSubdomain'.rumedica.com";
+        }
     ' >> $(pwd)/etc/dhcp/dhcpd.conf
 fi
+if [ ! -d "$(pwd)/var/lib/dhcp/" ]; then
+    mkdir -p $(pwd)/var/lib/dhcp/
+fi
+
 if [ ! -d "$(pwd)/var/lib/bind/" ]; then
     mkdir -p $(pwd)/var/lib/bind/
 fi
+
 if [ ! -f "$(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone" ]; then
 echo '
 $TTL 1d
@@ -272,10 +278,13 @@ cacli           IN      A               '$cacli_ip'
 www             IN      CNAME   @
 '  > $(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone
 fi
+if [ ! -d "$(pwd)/step/" ] ; then
+    mkdir -p $(pwd)/step/
+fi
+
 chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 
-docker_run = "\
-docker run  -d --rm \
+docker_run = "docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
@@ -290,17 +299,14 @@ docker run  -d --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
 --mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
+--mount type=bind,source="$(pwd)/var/lib/dhcp/",target=/var/lib/dhcp/ \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
 msalimov/local:latest
 
-if [ ! -d "$(pwd)/step/" ] ; then
-    mkdir -p $(pwd)/step/
-fi
 
-docker_run = "\
-docker run -d --rm \
+docker_run = "docker run -d --rm \
 --mount type=bind,source="$(pwd)/step/",target=/home/step/ \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
