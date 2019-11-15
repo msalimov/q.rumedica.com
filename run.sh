@@ -283,8 +283,11 @@ if [ ! -d "$(pwd)/step/" ] ; then
 fi
 
 chown -R ${QSubdomain}:${QSubdomain} $(pwd)
+chmod -R 660 ${QSubdomain}
+usermod -a -G ${QSubdomain} root
 
-docker_run = "docker run  -d --rm \
+echo "#/bin/bash" > $(pwd)/startup.sh
+echo "docker run  -d --rm \
 --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
@@ -292,9 +295,8 @@ docker_run = "docker run  -d --rm \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
-msalimov/local:latest"
-
-echo $docker_run
+--name localnet \
+msalimov/local:latest" >> $(pwd)/startup.sh
 
 docker run  -it --rm \
 --mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
@@ -304,20 +306,28 @@ docker run  -it --rm \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $dns_ip \
+--name localnet \
 msalimov/local:latest
 
-docker_run = "docker run -d --rm \
+echo "docker run -d --rm \
 --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $cacli_ip \
-smallstep/step-cli"
-
-echo $docker_run
+--name cacli \
+smallstep/step-cli" >> $(pwd)/startup.sh
 
 docker run -d --rm \
 --mount type=bind,source="$(pwd)/step/",target=/home/step/ \
 --network ntb.q \
 --user $(id -u ${QSubdomain}) \
 --ip $cacli_ip \
+--name cacli \
 smallstep/step-cli
+
+echo "#/bin/bash" > $(pwd)/destroy.sh
+echo "docker stop cacli 
+docker stop localnet
+docker network rm ntb.q
+userdel -r ${QSubdomain}
+groupdel ${QSubdomain}" >> $(pwd)/destroy.sh
