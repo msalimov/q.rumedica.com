@@ -284,7 +284,6 @@ if [ ! -d "$(pwd)/step/" ] ; then
 fi
 
 chown -R ${QSubdomain}:${QSubdomain} $(pwd)
-chmod -R 750 $(pwd)
 usermod -a -G ${QSubdomain} root
 
 echo "#/bin/bash" > ${CurrentDIR}/startup.sh
