@@ -257,6 +257,10 @@ if [ ! -d "$(pwd)/var/lib/dhcp/" ]; then
     mkdir -p $(pwd)/var/lib/dhcp/
 fi
 
+if [ ! -f "$(pwd)/var/lib/dhcp/dhcpd.leases" ]
+    touch $(pwd)/var/lib/dhcp/dhcpd.leases
+fi
+
 if [ ! -d "$(pwd)/var/lib/bind/" ]; then
     mkdir -p $(pwd)/var/lib/bind/
 fi
@@ -298,17 +302,6 @@ echo "docker run  -d --rm \
 --name localnet \
 msalimov/local:latest" >> ${CurrentDIR}/startup.sh
 
-docker run  -d --rm \
---mount type=bind,source="$(pwd)/etc/bind/",target=/etc/bind/ \
---mount type=bind,source="$(pwd)/etc/dhcp/",target=/etc/dhcp/ \
---mount type=bind,source="$(pwd)/var/lib/bind/",target=/var/lib/bind/ \
---mount type=bind,source="$(pwd)/var/lib/dhcp/",target=/var/lib/dhcp/ \
---network ntb.q \
---user $(id -u ${QSubdomain}) \
---ip $dns_ip \
---name localnet \
-msalimov/local:latest
-
 echo "docker run -d --rm \
 --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
 --network ntb.q \
@@ -317,17 +310,11 @@ echo "docker run -d --rm \
 --name cacli \
 smallstep/step-cli" >> ${CurrentDIR}/startup.sh
 
-docker run -d --rm \
---mount type=bind,source="$(pwd)/step/",target=/home/step/ \
---network ntb.q \
---user $(id -u ${QSubdomain}) \
---ip $cacli_ip \
---name cacli \
-smallstep/step-cli
-
 echo "#/bin/bash" > ${CurrentDIR}/destroy.sh
 echo "docker stop cacli 
 docker stop localnet
 docker network rm ntb.q
 userdel -r ${QSubdomain}
 groupdel ${QSubdomain}" >> ${CurrentDIR}/destroy.sh
+
+chmod +x ${CurrentDIR}/destroy.sh ${CurrentDIR}/destroy.sh
