@@ -287,7 +287,7 @@ if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
 fi
 
-chown -R ${QSubdomain}:${QSubdomain} $(pwd)
+# chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
 
 echo "#/bin/bash" > ${CurrentDIR}/startup.sh
