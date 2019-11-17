@@ -216,41 +216,41 @@ if [[ ! -d "${pwd}/etc/bind/" ]]; then
 fi
 if [ ! -f "$(pwd)/etc/bind/named.conf" ]; then
     echo '
-    options {
-        directory "/var/lib/bind";
-        listen-on { any; };
-        listen-on-v6 { any; };
-        allow-query { any; };
-        allow-transfer { none; };
-        allow-update { none; };
-        allow-recursion { none; };
-        recursion no;
-    };' > $(pwd)/etc/bind/named.conf
+options {
+    directory "/var/lib/bind";
+    listen-on { any; };
+    listen-on-v6 { any; };
+    allow-query { any; };
+    allow-transfer { none; };
+    allow-update { none; };
+    allow-recursion { none; };
+    recursion no;
+};' > $(pwd)/etc/bind/named.conf
     echo ' 
-    zone "'$QSubdomain'.rumedica.com" IN {
-	    type master;
-	    file "'$QSubdomain'.rumedica.com.zone";
-    };' >> $(pwd)/etc/bind/named.conf
+zone "'$QSubdomain'.rumedica.com" IN {
+	type master;
+	file "'$QSubdomain'.rumedica.com.zone";
+};' >> $(pwd)/etc/bind/named.conf
 fi
 
 if [[ ! -d "$(pwd)/etc/dhcp/" ]]; then
     mkdir -p $(pwd)/etc/dhcp/
 fi
 if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
-    echo ' 
-    authoritative;
-    default-lease-time 7200;
-    max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
-    echo ' 
-    subnet '$QSubnet' netmask '$QSubnetMask' {
-        option routers '$QNetGW';
-        option subnet-mask '$QSubnetMask';
-        range '$QNetRANGE';
-        option broadcast-address '$QNetBCAST';
-        option domain-name-servers '$dns_ip';
-        option domain-name "'$QSubdomain'.rumedica.com";
-        option domain-search "'$QSubdomain'.rumedica.com";
-        }
+echo ' 
+authoritative;
+default-lease-time 7200;
+max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
+echo ' 
+subnet '$QSubnet' netmask '$QSubnetMask' {
+    option routers '$QNetGW';
+    option subnet-mask '$QSubnetMask';
+    range '$QNetRANGE';
+    option broadcast-address '$QNetBCAST';
+    option domain-name-servers '$dns_ip';
+    option domain-name "'$QSubdomain'.rumedica.com";
+    option domain-search "'$QSubdomain'.rumedica.com";
+    }
     ' >> $(pwd)/etc/dhcp/dhcpd.conf
 fi
 if [ ! -d "$(pwd)/var/lib/dhcp/" ]; then
