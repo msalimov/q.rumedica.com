@@ -1,13 +1,6 @@
 
 #/bin/bash
 
-export QSubnet="192.168.200.0"
-export QSubnetMask="255.255.255.0"
-export QNetGW="192.168.200.254"
-export QNetVlan=""
-export QSubdomain="salavatmed"
-
-
 ReservedIPs=""
 CurrentDIR=$(cd `dirname $0` && pwd)
 
@@ -125,6 +118,14 @@ then
     exit 1
 fi
 
+dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
+
+export QSubnet="192.168.200.0"
+export QSubnetMask="255.255.255.0"
+export QNetGW="192.168.200.254"
+export QNetVlan=""
+export QSubdomain="salavatmed"
+
 unameOut="$(uname -s)"
 Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
 
@@ -162,8 +163,6 @@ esac
 
 
 
-reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip" 
-echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
 echo Machine: $machine
 echo Network interfaces: ${Ifs[@]} 
@@ -193,7 +192,12 @@ echo Selected interface is: $iface
 if [ "$QNetVlan" ]
 then
     iface="${iface}.${QNetVlan}"
+    reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
+else
+    reserveip $QSubnet $QSubnetMask "cacli_ip, ca_ip"
 fi
+ 
+echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
 echo Docker network parent interface is: $iface
 ntbq_net=$(docker network ls | grep ntb.q)
@@ -203,8 +207,8 @@ if [ -z $ntbq_net ]
 then
     docker network create -d macvlan \
         --subnet=$QNet --gateway=$QNetGW \
-        -o parent=$iface \
-        ntb.q
+        -o macvlan_mode=bridge, parent=$iface \
+        ${QSubdomain}
     if [ -n "$?" ]
     then
         net_created=1
@@ -296,7 +300,7 @@ echo "docker run  -d --rm \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
 --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
---network ntb.q \
+--network $QSubdomain \
 --ip $dns_ip \
 --name localnet \
 msalimov/local:latest" >> ${CurrentDIR}/startup.sh
@@ -304,7 +308,7 @@ msalimov/local:latest" >> ${CurrentDIR}/startup.sh
 
 echo "docker run -d --rm \
 --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
---network ntb.q \
+--network $QSubdomain \
 --ip $cacli_ip \
 --name cacli \
 smallstep/step-cli" >> ${CurrentDIR}/startup.sh
@@ -312,7 +316,7 @@ smallstep/step-cli" >> ${CurrentDIR}/startup.sh
 echo "#/bin/bash" > ${CurrentDIR}/destroy.sh
 echo "docker stop cacli 
 docker stop localnet
-docker network rm ntb.q
+docker network rm ${QSubdomain}
 userdel -r ${QSubdomain}
 groupdel ${QSubdomain}" >> ${CurrentDIR}/destroy.sh
 
