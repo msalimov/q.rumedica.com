@@ -188,14 +188,14 @@ else
     iface=$(Ifs) 
 fi
 echo Selected interface is: $iface
-dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
+# dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
 
 if [ "$QNetVlan" ]
 then
     iface="${iface}.${QNetVlan}"
     reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
 else
-    reserveip $QSubnet $QSubnetMask "cacli_ip, ca_ip"
+    reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
 fi
  
 echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
@@ -222,6 +222,7 @@ if [[ ! -d "${pwd}/etc/bind/" ]]; then
 fi
 if [ ! -f "$(pwd)/etc/bind/named.conf" ]; then
     echo '
+include "/etc/bind/rndc.key";
 options {
     directory "/var/lib/bind";
     listen-on { any; };
@@ -231,18 +232,29 @@ options {
     allow-update { none; };
     allow-recursion { none; };
     recursion no;
+};
+controls {
+        inet 127.0.0.1 allow { localhost; } keys { "'$QSubdomain'"; };
 };' > $(pwd)/etc/bind/named.conf
     echo ' 
 zone "'$QSubdomain'.rumedica.com" IN {
 	type master;
 	file "'$QSubdomain'.rumedica.com.zone";
 };' >> $(pwd)/etc/bind/named.conf
+
     echo '
 key "'${QSubdomain}'" {
         algorithm hmac-md5;
-        secret "'$(echo -n $QSubdomain | md5sum )'";
-};' >> $(pwd)/etc/bind/named.conf
-
+        secret "'$(echo -n $QSubdomain | base64 )'";
+};' > $(pwd)/etc/bind/rndc.key
+    echo '
+include "/etc/bind/rndc.key";    
+options {
+        default-key "'$QSubdomain'";
+        default-server 127.0.0.1;
+        default-port 953;
+};
+    '>$(pwd)/etc/bind/rndc.conf
 fi
 
 if [[ ! -d "$(pwd)/etc/dhcp/" ]]; then
@@ -250,6 +262,7 @@ if [[ ! -d "$(pwd)/etc/dhcp/" ]]; then
 fi
 if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
 echo ' 
+include "/etc/bind/rndc.key";
 authoritative;
 default-lease-time 7200;
 max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
@@ -303,7 +316,7 @@ fi
 usermod -a -G ${QSubdomain} root
 
 echo "#/bin/bash" > ${CurrentDIR}/startup.sh
-echo "docker run  -d --rm \
+echo "docker run  -it --rm \
 --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
