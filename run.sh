@@ -207,7 +207,8 @@ if [ -z $ntbq_net ]
 then
     docker network create -d macvlan \
         --subnet=$QNet --gateway=$QNetGW \
-        -o macvlan_mode=bridge, parent=$iface \
+        -o macvlan_mode=bridge \
+        -o parent=$iface \
         ${QSubdomain}
     if [ -n "$?" ]
     then
