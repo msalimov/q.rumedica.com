@@ -118,13 +118,13 @@ then
     exit 1
 fi
 
-dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
 
 export QSubnet="192.168.200.0"
 export QSubnetMask="255.255.255.0"
 export QNetGW="192.168.200.254"
 export QNetVlan=""
 export QSubdomain="salavatmed"
+
 
 unameOut="$(uname -s)"
 Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
@@ -188,6 +188,7 @@ else
     iface=$(Ifs) 
 fi
 echo Selected interface is: $iface
+dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
 
 if [ "$QNetVlan" ]
 then
@@ -236,6 +237,12 @@ zone "'$QSubdomain'.rumedica.com" IN {
 	type master;
 	file "'$QSubdomain'.rumedica.com.zone";
 };' >> $(pwd)/etc/bind/named.conf
+    echo '
+key "'${QSubdomain}'" {
+        algorithm hmac-md5;
+        secret "'$(echo -n $QSubdomain | md5sum )'";
+};' >> $(pwd)/etc/bind/named.conf
+
 fi
 
 if [[ ! -d "$(pwd)/etc/dhcp/" ]]; then
