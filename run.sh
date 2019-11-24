@@ -264,6 +264,12 @@ if [ ! -f "${pwd}/etc/dhcp/dhcpd.conf" ]; then
 echo ' 
 include "/etc/bind/rndc.key";
 authoritative;
+ddns-updates on;
+update-static-leases on;
+ddns-domainname "'$QSubdomain'.rumedica.com";
+ddns-update-style interim;
+ignore client-updates;
+update-static-leases true;
 default-lease-time 7200;
 max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
 echo ' 
@@ -312,7 +318,7 @@ if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
 fi
 
-# chown -R ${QSubdomain}:${QSubdomain} $(pwd)
+chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
 
 echo "#/bin/bash" > ${CurrentDIR}/startup.sh
@@ -321,11 +327,12 @@ echo "docker run  -it --rm \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
 --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
+--user $(id -u ${QSubdomain}) \
 --network $QSubdomain \
 --ip $dns_ip \
 --name localnet \
 msalimov/local:latest" >> ${CurrentDIR}/startup.sh
-# --user $(id -u ${QSubdomain}) \
+
 
 echo "docker run -d --rm \
 --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
