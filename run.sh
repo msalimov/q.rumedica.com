@@ -69,7 +69,7 @@ CalcQNet() {
     result[0]=${netaddress[@]}
     result[0]=${result[0]//' '/\.}
     result[1]=${netmask[@]}
-    result[1]=${result[0]//' '/\.}
+    result[1]=${result[1]//' '/\.}
     result[2]=${netcidr}
     result[3]=${netbroadcast[@]}
     result[3]=${result[0]//' '/\.}
