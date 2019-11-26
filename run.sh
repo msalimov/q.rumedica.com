@@ -102,13 +102,14 @@ nexthost() {
         address[i]=$octet
         ((i++))
     done
-    i=0; ipsum=0; 
+    i=0; ipsum=0; maxhost=0
     for octet in $2; do
         mask[i]=$((255-$octet))
         net[i]=$((address[i]^mask[i]))
         shiftindex=$((3-i))
         ipsum=$((mask[i]<<shiftindex))
         maxhost=$((maxhost|ipsum))
+
         ((i++))
     done
     ipsum=0;
@@ -142,13 +143,14 @@ nexthost() {
 
 reserveip() {
     old_IFS=$IFS
+    local genip=$1
+    local netmask=$2
     IFS=,
-    genip=$1
     for VarName in $3
     do
         while [[ ! -z $genip ]]; 
         do
-            genip=$( nexthost $genip $2 )
+            genip=$( nexthost $genip $netmask )
             if [[ ! $ReservedIPs =~ $genip ]]; then
                 break
             fi
