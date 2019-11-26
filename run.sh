@@ -1,8 +1,82 @@
 
-#/bin/bash
+#!/bin/bash
 
 ReservedIPs=""
 CurrentDIR=$(cd `dirname $0` && pwd)
+function valid_ip()
+{
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    return $stat
+}
+# CalcQNet $DefaultGateway $DefaultNetmask "QSubnet, QSubnetMask, QNetCIDR, QNetBCAST, QNetARPA"
+
+CalcQNet() {
+    declare -a netaddress[4], netmask[4], netbroadcast[4], result[]
+    local netcidr=0
+    local netarpa="in-addr.arpa.net"
+    local i=0
+    old_IFS=$IFS
+    IFS=.
+    for a in $1 ; do
+        netaddress[i]=$a
+        ((i++))
+    done
+    i=0
+    j=0
+    for m in $2 ; do
+        case $m in
+            255) let netcidr+=8;;
+            254) let netcidr+=7;;
+            252) let netcidr+=6;;
+            248) let netcidr+=5;;
+            240) let netcidr+=4;;
+            224) let netcidr+=3;;
+            192) let netcidr+=2;;
+            128) let netcidr+=1;;
+            0);;
+            *) exit 1
+        esac
+        if [ $m<255 ]
+            ((j++))
+            if [ j>2 ] ; then
+                exit 1
+            fi
+        fi
+        netmask[i]=$m
+        netaddress[i]=$((netaddress[i]&netmask[i]))
+        notmask=255-$m
+        netbroadcast[i]=$((netaddress[i]|notmask))
+        if [ netaddress[i] > 0]
+        then
+            netarpa="${netaddress[i]}.${netarpa}"
+        fi
+        ((i++))
+    done
+    IFS=,
+    result[0]=netaddress
+    nesult[1]=netmask
+    result[2]=netcidr
+    result[3]=netbroadcast
+    result[4]=netarpa
+    i=0
+    for VarName in $3; do
+        eval $VarName\=${result[i]}
+        echo $result[i]
+        ((i++))
+    done
+    IFS=${old_IFS}
+}
 
 # Function calculates number of bit in a netmask
 #
@@ -26,6 +100,7 @@ mask2cidr() {
     echo "$nbits"
 }
 # Function calculates broadcast address by network address and netmask
+
 bcastaddr () {
 #    echo "Broadcast calculation for:" $1 $2
     local bcast=""
@@ -118,27 +193,40 @@ then
     exit 1
 fi
 
-
-export QSubnet="192.168.200.0"
-export QSubnetMask="255.255.255.0"
-export QNetGW="192.168.200.254"
-export QNetVlan=""
 export QSubdomain="salavatmed"
 
-
 unameOut="$(uname -s)"
-Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
+# Ifs=$(netstat -rn | grep UG |sed -e 's/^.*\([[:blank:]]\([[:alnum:]].*\).*$\)/\2/' | sort -u)
+# ip route get 1 | sed 's/^.*src \([^ ]*\).*$/\1/;q'
 
 case "${unameOut}" in
     Linux*)     
         machine=Linux
         Ifs=($(find /sys/class/net -type l -not -lname '*virtual*' -printf '%f\n'))
+        DefaultIP=$(ping -c 1 -n $(hostname) | head -1 | cut -d' ' -f3)
+        DefaultIP=${DefaultIP#*\(}
+        DefaultIP=${DefaultIP%\)*}
+        DefaultRoute=$(cat /proc/net/route | head -2 | tail -1)
+        DefaultInterface=$(echo $DefaultRoute | cut -d' ' -f1)
+        RouteTable=$(cat /proc/net/route | grep ${DefaultInterface}.*0001.*)
+        DefaultGateway=$(echo $DefaultRoute | cut -d' ' -f3)
+        DefaultNetwork=$(echo $RouteTable | cut -d' ' -f2)
+        DefaultNetmask=$(echo $RouteTable | cut -d' ' -f8)
+        DefaultNetwork=$(printf "%d." $(echo $DefaultNetwork | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
+        DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
+        DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
         machine=Mac
         Ifs=($(networksetup -listdevicesthatsupportVLAN | sed 's/([^)]*)//g'))
+        DefaultRoute=$(netstat -rn -f inet | grep -E "^0.0.0.0|^default")
+        DefaultGateway=$(echo $DefaultRoute | awk '{print $2}')
+        DefaultInterface=$(echo $DefaultRoute | awk '{print $4}')
+        DefaultIP=$(ifconfig ${DefaultInterface} | grep inet | cut -d' ' -f2)
+        DefaultNetmask=$(ifconfig ${DefaultInterface} | grep inet | cut -d' ' -f4)
+        DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/0x//g' | sed 's/../0x& /g') | sed 's/\.$//')
         MAXID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -ug | tail -1)
         USERID=$((MAXID+1))
 
@@ -168,18 +256,14 @@ echo Machine: $machine
 echo Network interfaces: ${Ifs[@]} 
 echo ...the total number is: ${#Ifs[@]}
 
-QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
-QNet="${QSubnet}/${QNetCIDR}"
-QNetBCAST=$(echo $(bcastaddr $QSubnet $QSubnetMask))
-QNetRANGE="192.168.200.20 192.168.200.200"
-
 if [ ${#Ifs[@]} > 1 ] 
 then
     echo ... it is greater than 1
     for iface in ${Ifs[@]}
     do
         echo "Looking for " $iface "..."
-        if [ ! -z "$(netstat -rn | grep -E "^0.0.0.0|^default" | grep $iface)" ] 
+        tmpStr=${DefaultRoute#*${iface}}
+        if [ ${#tmpStr}<${#DefaultRoute}] 
             then break
         fi
     done
@@ -188,8 +272,32 @@ else
     iface=$(Ifs) 
 fi
 echo Selected interface is: $iface
-# dns_ip="$(ifconfig | grep -A 1 ${iface} | tail -1 | cut -d ':' -f 2 | cut -d ' ' -f 1)"
 
+# Network address, 192.168.1.0/24: QSubnet=192.168.1.0
+QSubnet="192.168.200.0"
+# Network subnet mask "255.255.255.0"
+QSubnetMask="255.255.255.0"
+# NNetwork Default Gateway address
+QNetGW="192.168.200.254"
+# Network CIDR 255.255.255.0=>/24
+QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
+# Network in CIDR format 192.168.1.0/24
+QNet=
+# Network broadcast address 192.168.1.0/24: QNetBCAST=192.168.1.255
+QNetBCAST="192.168.200.255"
+# DHCP address pool
+QNetRANGE="192.168.200.20 192.168.200.200"
+# IP address in ARPA format 127.0.0.1=>0.0.127.IN-ADDR.ARPA.NET
+QNetARPA="200.168.192.in-addr.arpa.net" 
+
+# VLAN subinterface used
+QNetVlan=""
+if [ ${#QNetVlan}=0 ] 
+then
+    # Do calculate network parameters
+fi
+CalcQNet $DefaultGateway $DefaultNetmask "QSubnet, QSubnetMask, QNetCIDR, QNetBCAST, QNetARPA"
+ 
 if [ "$QNetVlan" ]
 then
     iface="${iface}.${QNetVlan}"
@@ -197,8 +305,6 @@ then
 else
     reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
 fi
- 
-echo DNS: $dns_ip CA_CLI: $cacli_ip CA: $ca_ip
 
 echo Docker network parent interface is: $iface
 ntbq_net=$(docker network ls | grep ntb.q)
@@ -207,7 +313,7 @@ echo $ntbq_net
 if [ -z $ntbq_net ]
 then
     docker network create -d macvlan \
-        --subnet=$QNet --gateway=$QNetGW \
+        --subnet="${QSubnet}/${QNetCIDR}" --gateway=$QNetGW \
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
@@ -235,12 +341,24 @@ options {
 };
 controls {
         inet 127.0.0.1 allow { localhost; } keys { "'$QSubdomain'"; };
-};' > $(pwd)/etc/bind/named.conf
+};
+forwarders {
+    8.8.8.8;
+    8.8.4.4;
+};
+' > $(pwd)/etc/bind/named.conf
     echo ' 
 zone "'$QSubdomain'.rumedica.com" IN {
 	type master;
+    allow-update { key '$QSubdomain'; };
 	file "'$QSubdomain'.rumedica.com.zone";
-};' >> $(pwd)/etc/bind/named.conf
+};
+zone "${QNetARPA}" IN {
+    type master;
+    allow-update { key '$QSubdomain'; };
+    file "${QNetARPA}";
+}    
+' >> $(pwd)/etc/bind/named.conf
 
     echo '
 key "'${QSubdomain}'" {
@@ -271,7 +389,11 @@ ddns-update-style interim;
 ignore client-updates;
 update-static-leases true;
 default-lease-time 7200;
-max-lease-time 7200;' > $(pwd)/etc/dhcp/dhcpd.conf
+max-lease-time 7200;
+local-address '$dns_ip';
+zone '$QSubdomain'.rumedica.com. { primary '$dns_ip'; key '$QSubdomain'; }
+zone ''.in-addr.arpa. { primary '$dns_ip'; key '$QSubdomain'; }
+' > $(pwd)/etc/dhcp/dhcpd.conf
 echo ' 
 subnet '$QSubnet' netmask '$QSubnetMask' {
     option routers '$QNetGW';
@@ -313,6 +435,22 @@ ca              IN      A               '$ca_ip'
 cacli           IN      A               '$cacli_ip'
 www             IN      CNAME   @
 '  > $(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone
+fi
+if [ ! -f "$(pwd)/var/lib/bind/${QNetARPA}" ]; then
+echo '
+$TTL 1d     ; 1 week
+@  IN  SOA    ns1.'$QSubdomain'.rumedica.com. '$QSubdomain'.rumedica.com. (
+        2016010101      ; serial
+        28800           ; refresh (8 hours)
+        7200            ; retry (2 hours)
+        2419200         ; expire (4 weeks)
+        86400           ; minimum (1 day)
+                                )
+@		        IN	    NS	               ns1.'$QSubdomain'.rumedica.com.
+${dns_ip##*.}	IN	    PTR                ns1.'$QSubdomain'.rumedica.com.
+${ca_ip##*.}    IN      PTR                ca.${QSubdomain}.rumedica.com.
+${cacli_ip##*.} IN      PTR                cacli.${QSubdomain}.rumedica.com.
+' > $(pwd)/var/lib/bind/${QNetARPA}.zone
 fi
 if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/
