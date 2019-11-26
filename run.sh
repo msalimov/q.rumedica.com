@@ -45,11 +45,13 @@ CalcQNet() {
             192) let netcidr+=2;;
             128) let netcidr+=1;;
             0);;
-            *) exit 1
+            *) echo "Exit 1"; exit 1
         esac
-        if [ $m<255 ]
+        if [ $m -lt 255 ]; then
             ((j++))
-            if [ j>2 ] ; then
+            if [ $j -gt 2 ] ; then
+
+                echo "Exit 2"
                 exit 1
             fi
         fi
@@ -57,80 +59,30 @@ CalcQNet() {
         netaddress[i]=$((netaddress[i]&netmask[i]))
         notmask=255-$m
         netbroadcast[i]=$((netaddress[i]|notmask))
-        if [ netaddress[i] > 0]
+        if [ ${netaddress[i]} -gt 0 ]
         then
             netarpa="${netaddress[i]}.${netarpa}"
         fi
         ((i++))
     done
     IFS=,
-    result[0]=netaddress
-    nesult[1]=netmask
-    result[2]=netcidr
-    result[3]=netbroadcast
-    result[4]=netarpa
+    result[0]=${netaddress[@]}
+    result[0]=${result[0]//' '/\.}
+    result[1]=${netmask[@]}
+    result[1]=${result[0]//' '/\.}
+    result[2]=${netcidr}
+    result[3]=${netbroadcast[@]}
+    result[3]=${result[0]//' '/\.}
+    result[4]=${netarpa}
     i=0
     for VarName in $3; do
+        echo $VarName=${result[i]}
         eval $VarName\=${result[i]}
-        echo $result[i]
         ((i++))
     done
     IFS=${old_IFS}
 }
 
-# Function calculates number of bit in a netmask
-#
-mask2cidr() {
-    nbits=0
-    local IFS=.
-    for dec in $1 ; do
-        case $dec in
-            255) let nbits+=8;;
-            254) let nbits+=7;;
-            252) let nbits+=6;;
-            248) let nbits+=5;;
-            240) let nbits+=4;;
-            224) let nbits+=3;;
-            192) let nbits+=2;;
-            128) let nbits+=1;;
-            0);;
-            *) echo "Error: $dec is not recognised"; exit 1
-        esac
-    done
-    echo "$nbits"
-}
-# Function calculates broadcast address by network address and netmask
-
-bcastaddr () {
-#    echo "Broadcast calculation for:" $1 $2
-    local bcast=""
-    old_IFS=$IFS
-    IFS=.
-    declare -a anet[4] mnet[4]
-    local i=0
-    for address in $1 ; do
-        anet[i]=$address
-        ((i++))
-    done
-    i=0
-    for mask in $2 ; do
-        mnet[i]=$mask
-       ((i++))
-    done
-    for ((i=0;i<=3;i++)); do
-        if [ ${mnet[i]} -eq 255 ] ; then
-            bcast="${bcast}${anet[i]}"
-        else
-            addr=$((255-${mnet[i]}+${anet[i]}))
-            bcast="${bcast}${addr}"
-        fi
-        if [ $i -lt 3 ] ; then
-            bcast="${bcast}."
-        fi
-    done
-    IFS=${old_IFS}
-    echo "$bcast"
-}
 
 nexthost() {
     old_IFS=$IFS
@@ -169,7 +121,6 @@ reserveip() {
         do
             genip=$( nexthost $genip $2 )
             if [[ ! $ReservedIPs =~ $genip ]]; then
-                echo Reserved: $ReservedIPs
                 break
             fi
         done
@@ -179,7 +130,6 @@ reserveip() {
         IFS=,
     done
     IFS=${old_IFS}
-    echo "$ReservedIPs"
 }
 
 
@@ -263,7 +213,7 @@ then
     do
         echo "Looking for " $iface "..."
         tmpStr=${DefaultRoute#*${iface}}
-        if [ ${#tmpStr}<${#DefaultRoute}] 
+        if [ ${#tmpStr} -lt ${#DefaultRoute} ] 
             then break
         fi
     done
@@ -280,9 +230,9 @@ QSubnetMask="255.255.255.0"
 # NNetwork Default Gateway address
 QNetGW="192.168.200.254"
 # Network CIDR 255.255.255.0=>/24
-QNetCIDR=$(echo $(mask2cidr $QSubnetMask))
+QNetCIDR=24
 # Network in CIDR format 192.168.1.0/24
-QNet=
+# QNet=
 # Network broadcast address 192.168.1.0/24: QNetBCAST=192.168.1.255
 QNetBCAST="192.168.200.255"
 # DHCP address pool
@@ -292,19 +242,18 @@ QNetARPA="200.168.192.in-addr.arpa.net"
 
 # VLAN subinterface used
 QNetVlan=""
-if [ ${#QNetVlan}=0 ] 
+if [ $QNetVlan ] ;
 then
     # Do calculate network parameters
-fi
-CalcQNet $DefaultGateway $DefaultNetmask "QSubnet, QSubnetMask, QNetCIDR, QNetBCAST, QNetARPA"
- 
-if [ "$QNetVlan" ]
-then
+    echo SubVLAN interface defined
     iface="${iface}.${QNetVlan}"
-    reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
 else
-    reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
+    echo No SubVLAN interface
+    QNetGW=${DefaultGateway}
 fi
+CalcQNet $DefaultGateway $DefaultNetmask "QSubnet, QSubnetMask, QNetCIDR, QNetBCAST, QNetARPA, QNetRANGE"
+
+reserveip $QSubnet $QSubnetMask "dns_ip, cacli_ip, ca_ip"
 
 echo Docker network parent interface is: $iface
 ntbq_net=$(docker network ls | grep ntb.q)
@@ -312,12 +261,19 @@ echo $ntbq_net
 
 if [ -z $ntbq_net ]
 then
+echo"
+    docker network create -d macvlan \
+        --subnet=${QSubnet}/${QNetCIDR} --gateway=$QNetGW \
+        -o macvlan_mode=bridge \
+        -o parent=$iface \
+        ${QSubdomain}"
+    
     docker network create -d macvlan \
         --subnet="${QSubnet}/${QNetCIDR}" --gateway=$QNetGW \
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    if [ -n "$?" ]
+    if [ -z "$?" ]
     then
         net_created=1
     fi
