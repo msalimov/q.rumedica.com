@@ -22,7 +22,7 @@ function valid_ip()
 # CalcQNet $DefaultGateway $DefaultNetmask "QSubnet, QSubnetMask, QNetCIDR, QNetBCAST, QNetARPA"
 
 CalcQNet() {
-    declare -a netaddress[4], netmask[4], netbroadcast[4], result[]
+    declare -a netaddress[4] netmask[4] netbroadcast[4] result[6]
     local netcidr=0
     local netarpa="in-addr.arpa.net"
     local i=0
@@ -74,6 +74,7 @@ CalcQNet() {
     result[3]=${netbroadcast[@]}
     result[3]=${result[0]//' '/\.}
     result[4]=${netarpa}
+    result[5]="192.168.200.20 - 192.168.200.30"
     i=0
     for VarName in $3; do
         echo $VarName=${result[i]}
@@ -94,7 +95,7 @@ nexthost() {
     local nexthost=0
     local maxhost=0
     local result=""
-    declare -a address[4], mask[4], net[4]
+    declare -a address[4] mask[4] net[4]
     old_IFS=$IFS
     IFS="."
     for octet in $1 ; do
