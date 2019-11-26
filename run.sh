@@ -82,33 +82,61 @@ CalcQNet() {
     done
     IFS=${old_IFS}
 }
-
-
+# Function nexthost() calculate next ip address from base
+# base ip address and network mask are comes in parameters
+# Parameters:
+# $1 - base IP address from wich next ip will calculated
+# $2 - network mask
+# ip-addresses in format A.B.C.D
 nexthost() {
+    local i=0
+    local ipsum=0
+    local nexthost=0
+    local maxhost=0
+    local result=""
+    declare -a address[4], mask[4], net[4]
     old_IFS=$IFS
     IFS="."
-    i=0
-    addr=""
-    bcast=""
-#    local bcast="$(bcastaddr $1 $2)"
-
-    for dec in $1 ; do
-#        echo "Enter to IP: i="$i ",ip octet=" $dec
-        if [ $i -eq 3 ] ; then
-#            echo "Enter into 4'th octet" $dec
-            addr="${addr}$(($dec + 1))"
-#            echo "Calculated address:" ${addr}
-        else 
-            addr="${addr}${dec}."
-        fi
+    for octet in $1 ; do
+        address[i]=$octet
         ((i++))
     done
-    if [[  $bcast =~ $addr ]]; then
-        echo "What happens:" $bcast, $addr
-                addr=""
-    fi
+    i=0; ipsum=0; 
+    for octet in $2; do
+        mask[i]=$((255-$octet))
+        net[i]=$((address[i]^mask[i]))
+        shiftindex=$((3-i))
+        ipsum=$((mask[i]<<shiftindex))
+        maxhost=$((maxhost|ipsum))
+        ((i++))
+    done
+    ipsum=0;
+    for ((i=0; i<=3; i++))
+    do
+        ipsum=$((address[i]&mask[i]))
+        shiftindex=$((3-i))
+        shiftindex=$((shiftindex*8))
+        ipsum=$((ipsum<<shiftindex))
+        nexthost=$((nexthost|ipsum))
+    done
+    nexthost=$((nexthost+1))
     IFS=${old_IFS}
-    echo "$addr"
+    if [ $nexthost -lt $maxhost ] ; then echo ""
+    else
+        ipsum=0
+        for ((i=0; i<=3; i++))
+        do
+            shiftindex=$((3-i))
+            shiftindex=$((shiftindex*8))
+            nexthost=$((nexthost^ipsum))
+            ipsum=$((nexthost>>shiftindex))
+            octet=$((ipsum|net[i]))
+            ipsum=$((ipsum<<shiftindex))
+            result="$result.$octet"
+            echo CalculatedIP:$result
+        done
+    fi
+    echo "$result"
 }
 
 reserveip() {
@@ -260,14 +288,7 @@ ntbq_net=$(docker network ls | grep ntb.q)
 echo $ntbq_net
 
 if [ -z $ntbq_net ]
-then
-echo"
-    docker network create -d macvlan \
-        --subnet=${QSubnet}/${QNetCIDR} --gateway=$QNetGW \
-        -o macvlan_mode=bridge \
-        -o parent=$iface \
-        ${QSubdomain}"
-    
+then    
     docker network create -d macvlan \
         --subnet="${QSubnet}/${QNetCIDR}" --gateway=$QNetGW \
         -o macvlan_mode=bridge \
@@ -348,7 +369,7 @@ default-lease-time 7200;
 max-lease-time 7200;
 local-address '$dns_ip';
 zone '$QSubdomain'.rumedica.com. { primary '$dns_ip'; key '$QSubdomain'; }
-zone ''.in-addr.arpa. { primary '$dns_ip'; key '$QSubdomain'; }
+zone '$QNetARPA'. { primary '$dns_ip'; key '$QSubdomain'; }
 ' > $(pwd)/etc/dhcp/dhcpd.conf
 echo ' 
 subnet '$QSubnet' netmask '$QSubnetMask' {
