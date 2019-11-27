@@ -78,7 +78,7 @@ CalcQNet() {
     i=0
     for VarName in $3; do
         echo $VarName=${result[i]}
-        eval $VarName\=${result[i]}
+        eval $VarName\='${result[i]}'
         ((i++))
     done
     IFS=${old_IFS}
@@ -105,24 +105,27 @@ nexthost() {
     i=0; ipsum=0; maxhost=0
     for octet in $2; do
         mask[i]=$((255-$octet))
-        net[i]=$((address[i]^mask[i]))
+        net[i]=$((address[i]&octet))
         shiftindex=$((3-i))
         ipsum=$((mask[i]<<shiftindex))
         maxhost=$((maxhost|ipsum))
 
         ((i++))
     done
-    echo Mask: mask[@], Net: net[@]
+    echo Mask: ${mask[@]}, Net: ${net[@]}
     ipsum=0;
     for ((i=0; i<=3; i++))
     do
         ipsum=$((address[i]&mask[i]))
         shiftindex=$((3-i))
         shiftindex=$((shiftindex*8))
+        echo Index: $i, address[i]:${address[i]}, mask[i]:${mask[i]}, shiftindex: $shiftindex, ipsum:$ipsum
         ipsum=$((ipsum<<shiftindex))
+        echi ipsum AFTER: $ipsum, nexthost BEFORE: $nexthost
         nexthost=$((nexthost|ipsum))
     done
     nexthost=$((nexthost+1))
+    echo Calculated nexthost: $nexthost
     IFS=${old_IFS}
     if [ $nexthost -lt $maxhost ] ; then echo ""
     else
@@ -149,15 +152,15 @@ reserveip() {
     IFS=,
     for VarName in $3
     do
-        while [[ ! -z $genip ]]; 
+        while [[ -n $genip ]]; 
         do
-            genip=$( nexthost $genip $netmask )
+            genip=$(nexthost $genip $netmask)
             if [[ ! $ReservedIPs =~ $genip ]]; then
                 break
             fi
         done
 
-        eval $VarName\=${genip}
+        eval $VarName\='${genip}'
         ReservedIPs="${ReservedIPs};${genip}"
         IFS=,
     done
