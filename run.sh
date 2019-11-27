@@ -83,6 +83,7 @@ CalcQNet() {
     done
     IFS=${old_IFS}
 }
+
 # Function nexthost() calculate next ip address from base
 # base ip address and network mask are comes in parameters
 # Parameters:
@@ -95,7 +96,10 @@ nexthost() {
     local nexthost=0
     local maxhost=0
     local result=""
+    local zerohost=0
     declare -a address[4] mask[4] net[4]
+    declare -a asum[4]
+
     old_IFS=$IFS
     IFS="."
     for octet in $1 ; do
@@ -107,41 +111,48 @@ nexthost() {
         mask[i]=$((255-$octet))
         net[i]=$((address[i]&octet))
         shiftindex=$((3-i))
+        shiftindex=$((shiftindex*8))
         ipsum=$((mask[i]<<shiftindex))
         maxhost=$((maxhost|ipsum))
-
+        asum[i]=$ipsum
         ((i++))
     done
-    echo Mask: ${mask[@]}, Net: ${net[@]}
+    maxhost=$((maxhost-1))
+#    echo Mask: ${mask[@]}, Net: ${net[@]}
     ipsum=0;
     for ((i=0; i<=3; i++))
     do
         ipsum=$((address[i]&mask[i]))
         shiftindex=$((3-i))
         shiftindex=$((shiftindex*8))
-        echo Index: $i, address[i]:${address[i]}, mask[i]:${mask[i]}, shiftindex: $shiftindex, ipsum:$ipsum
+#        echo Index: $i, address[i]:${address[i]}, mask[i]:${mask[i]}, shiftindex: $shiftindex, ipsum:$ipsum
         ipsum=$((ipsum<<shiftindex))
-        echi ipsum AFTER: $ipsum, nexthost BEFORE: $nexthost
+
+#        echo ipsum AFTER: $ipsum, nexthost BEFORE: $nexthost
         nexthost=$((nexthost|ipsum))
     done
     nexthost=$((nexthost+1))
-    echo Calculated nexthost: $nexthost
+    zerohost=$((nexthost%256))
+    if [ $zerohost -eq 0 ]; then ((nexthost++)); fi
+#    echo Calculated nexthost: $nexthost
     IFS=${old_IFS}
-    if [ $nexthost -lt $maxhost ] ; then echo ""
+    if [ $nexthost -gt $maxhost ] ; then echo "Nexthost:" $nexthost, "Maxhost:" $maxhost, "Mask:" ${mask[@]}, "Net:" ${net[@]}, "ASum:" ${asum[@]}
     else
         ipsum=0
         for ((i=0; i<=3; i++))
         do
             shiftindex=$((3-i))
+            
             shiftindex=$((shiftindex*8))
             nexthost=$((nexthost^ipsum))
             ipsum=$((nexthost>>shiftindex))
             octet=$((ipsum|net[i]))
             ipsum=$((ipsum<<shiftindex))
             result="$result.$octet"
-            echo CalculatedIP:$result
+#            echo CalculatedIP:$result
         done
     fi
+    result=${result#\.}
     echo "$result"
 }
 
