@@ -112,6 +112,7 @@ nexthost() {
 
         ((i++))
     done
+    echo Mask: mask[@], Net: net[@]
     ipsum=0;
     for ((i=0; i<=3; i++))
     do
