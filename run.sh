@@ -75,23 +75,23 @@ CalcQNet() {
     result[3]=${netbroadcast[@]}
     result[3]=${result[0]//' '/\.}
     result[4]=${netarpa}
-    range=${result[0]}; exp=0;          #subnet range calculation
-    for ((i=1; i<=10; i++))             #first 10 addresses are reserved
+    range=${result[0]}; exp=0;          # subnet range calculation
+    for ((i=1; i<=10; i++))             # first 10 addresses are reserved
     do 
         range=$(nexthost $range ${result[1]})          
         maxhostEXP=$?
-        if [ $maxhostEXP -lt 7 ] ; then return -1    # if maximum hosts less than 128, system will not work
+        if [ $maxhostEXP -lt 7 ] ; then return -1; fi    # if maximum hosts less than 128, system will not work
     done
     maxhost=1
     maxhost=$((maxhost<<maxhostEXP))
-    maxhost=$((maxhost-11))         # 10 addresses from end are reserved
+    maxhost=$((maxhost-10))         # 10 addresses from end are reserved
     result[5]=$range
     for ((i; i<$maxhost; i++))
     do
         range=$(nexthost $range ${result[1]})
-        if [ $? -lt 0] ; then return -1         
+        if [ $? -lt 0 ] ; then return -1; fi         
     done
-    result[5]="${result[5]} - ${range}"
+    result[5]="${result[5]} ${range}"
     i=0
     for VarName in $3; do
         echo $VarName=${result[i]}
