@@ -348,10 +348,10 @@ zone "'$QSubdomain'.rumedica.com" IN {
     allow-update { key '$QSubdomain'; };
 	file "'$QSubdomain'.rumedica.com.zone";
 };
-zone "${QNetARPA}" IN {
+zone "'${QNetARPA}'" IN {
     type master;
     allow-update { key '$QSubdomain'; };
-    file "${QNetARPA}";
+    file "'${QNetARPA}'";
 }    
 ' >> $(pwd)/etc/bind/named.conf
 
