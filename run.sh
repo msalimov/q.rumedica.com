@@ -26,6 +26,7 @@ CalcQNet() {
     local netcidr=0
     local netarpa="in-addr.arpa.net"
     local i=0
+    local maxhost=0 maxhostEXP=0
     old_IFS=$IFS
     IFS=.
     for a in $1 ; do
@@ -74,7 +75,23 @@ CalcQNet() {
     result[3]=${netbroadcast[@]}
     result[3]=${result[0]//' '/\.}
     result[4]=${netarpa}
-    result[5]="192.168.200.20 - 192.168.200.30"
+    range=${result[0]}; exp=0;          #subnet range calculation
+    for ((i=1; i<=10; i++))             #first 10 addresses are reserved
+    do 
+        range=$(nexthost $range ${result[1]})          
+        maxhostEXP=$?
+        if [ $maxhostEXP -lt 7 ] ; then return -1    # if maximum hosts less than 128, system will not work
+    done
+    maxhost=1
+    maxhost=$((maxhost<<maxhostEXP))
+    maxhost=$((maxhost-11))         # 10 addresses from end are reserved
+    result[5]=$range
+    for ((i; i<$maxhost; i++))
+    do
+        range=$(nexthost $range ${result[1]})
+        if [ $? -lt 0] ; then return -1         
+    done
+    result[5]="${result[5]} - ${range}"
     i=0
     for VarName in $3; do
         echo $VarName=${result[i]}
@@ -94,7 +111,8 @@ nexthost() {
     local i=0
     local ipsum=0
     local nexthost=0
-    local maxhost=0
+    local maxhost=0       # Maximum hosts on given network
+    local maxhostEXP=0    # Exponent of maxhost
     local result=""
     local zerohost=0
     declare -a address[4] mask[4] net[4]
@@ -117,6 +135,12 @@ nexthost() {
         asum[i]=$ipsum
         ((i++))
     done
+    maxhostEXP=0; max=$maxhost
+    while [ $max -gt 0 ]
+    do
+        max=$((max>>1))
+        ((maxhostEXP++))
+    done
     maxhost=$((maxhost-1))
 #    echo Mask: ${mask[@]}, Net: ${net[@]}
     ipsum=0;
@@ -136,7 +160,8 @@ nexthost() {
     if [ $zerohost -eq 0 ]; then ((nexthost++)); fi
 #    echo Calculated nexthost: $nexthost
     IFS=${old_IFS}
-    if [ $nexthost -gt $maxhost ] ; then echo "Nexthost:" $nexthost, "Maxhost:" $maxhost, "Mask:" ${mask[@]}, "Net:" ${net[@]}, "ASum:" ${asum[@]}
+#    echo "Nexthost:" $nexthost, "Maxhost:" $maxhost, "Mask:" ${mask[@]}, "Net:" ${net[@]}, "ASum:" ${asum[@]}
+    if [ $nexthost -gt $maxhost ] ; then echo ""; return -1
     else
         ipsum=0
         for ((i=0; i<=3; i++))
@@ -152,9 +177,12 @@ nexthost() {
 #            echo CalculatedIP:$result
         done
     fi
+    # echo "Nexthost:" $nexthost, "Maxhost:" $maxhost, "Mask:" ${mask[@]}, "Net:" ${net[@]}, "ASum:" ${asum[@]}
     result=${result#\.}
-    echo "$result"
+    echo $result
+    return $maxhostEXP
 }
+
 
 reserveip() {
     old_IFS=$IFS
@@ -442,9 +470,9 @@ $TTL 1d     ; 1 week
         86400           ; minimum (1 day)
                                 )
 @		        IN	    NS	               ns1.'$QSubdomain'.rumedica.com.
-${dns_ip##*.}	IN	    PTR                ns1.'$QSubdomain'.rumedica.com.
-${ca_ip##*.}    IN      PTR                ca.${QSubdomain}.rumedica.com.
-${cacli_ip##*.} IN      PTR                cacli.${QSubdomain}.rumedica.com.
+'${dns_ip##*.}'	IN	    PTR                ns1.'$QSubdomain'.rumedica.com.
+'${ca_ip##*.}'    IN      PTR                ca.'${QSubdomain}'.rumedica.com.
+'${cacli_ip##*.}' IN      PTR                cacli.'${QSubdomain}'.rumedica.com.
 ' > $(pwd)/var/lib/bind/${QNetARPA}.zone
 fi
 if [ ! -d "$(pwd)/step/" ] ; then
