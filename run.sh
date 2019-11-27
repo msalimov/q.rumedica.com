@@ -365,10 +365,6 @@ options {
 controls {
         inet 127.0.0.1 allow { localhost; } keys { "'$QSubdomain'"; };
 };
-forwarders {
-    8.8.8.8;
-    8.8.4.4;
-};
 ' > $(pwd)/etc/bind/named.conf
     echo ' 
 zone "'$QSubdomain'.rumedica.com" IN {
@@ -380,7 +376,7 @@ zone "'${QNetARPA}'" IN {
     type master;
     allow-update { key '$QSubdomain'; };
     file "'${QNetARPA}'";
-}    
+};   
 ' >> $(pwd)/etc/bind/named.conf
 
     echo '
@@ -394,6 +390,10 @@ options {
         default-key "'$QSubdomain'";
         default-server 127.0.0.1;
         default-port 953;
+        forwarders {
+            8.8.8.8;
+            8.8.4.4;
+        };
 };
     '>$(pwd)/etc/bind/rndc.conf
 fi
@@ -414,8 +414,8 @@ update-static-leases true;
 default-lease-time 7200;
 max-lease-time 7200;
 local-address '$dns_ip';
-zone '$QSubdomain'.rumedica.com. { primary '$dns_ip'; key '$QSubdomain'; }
-zone '$QNetARPA'. { primary '$dns_ip'; key '$QSubdomain'; }
+zone '$QSubdomain'.rumedica.com. { primary '$dns_ip'; key '$QSubdomain'; };
+zone '$QNetARPA'. { primary '$dns_ip'; key '$QSubdomain'; };
 ' > $(pwd)/etc/dhcp/dhcpd.conf
 echo ' 
 subnet '$QSubnet' netmask '$QSubnetMask' {
@@ -426,7 +426,7 @@ subnet '$QSubnet' netmask '$QSubnetMask' {
     option domain-name-servers '$dns_ip';
     option domain-name "'$QSubdomain'.rumedica.com";
     option domain-search "'$QSubdomain'.rumedica.com";
-    }
+    };
     ' >> $(pwd)/etc/dhcp/dhcpd.conf
 fi
 if [ ! -d "$(pwd)/var/lib/dhcp/" ]; then
@@ -456,7 +456,7 @@ ns1             IN      A               '$dns_ip'
 @               IN      A               '$dns_ip'
 ca              IN      A               '$ca_ip'
 cacli           IN      A               '$cacli_ip'
-www             IN      CNAME   @
+www             IN      CNAME           @
 '  > $(pwd)/var/lib/bind/${QSubdomain}.rumedica.com.zone
 fi
 if [ ! -f "$(pwd)/var/lib/bind/${QNetARPA}" ]; then
