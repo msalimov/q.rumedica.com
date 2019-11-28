@@ -487,6 +487,7 @@ docker run -d --rm \
 --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
 --network $QSubdomain --ip $cacli_ip \
 --name cacli \
+--user root \
 smallstep/step-cli ${ca_cmd}
 
 echo "#!/bin/bash" > ${CurrentDIR}/run.sh
@@ -516,4 +517,4 @@ groupdel ${QSubdomain}" >> ${CurrentDIR}/remove.sh
 
 chmod +x ${CurrentDIR}/remove.sh ${CurrentDIR}/run.sh
 
-run.sh
+./run.sh
