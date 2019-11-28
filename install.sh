@@ -501,6 +501,11 @@ echo "docker run  -dt --rm \
 msalimov/local:latest" >> ${CurrentDIR}/run.sh
 # --user $(id -u ${QSubdomain}) \
 
+echo "docker run -dt --rm \
+--mount type=bind,source=${pwd}/step/,target=/home/step/ \
+--network ${QSubdomain} --ip ${ca_ip} \
+--name ca \
+smallstep/step-ca" >> ${CurrentDIR}/run.sh
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo "docker stop cacli 
@@ -510,3 +515,5 @@ userdel -r ${QSubdomain}
 groupdel ${QSubdomain}" >> ${CurrentDIR}/remove.sh
 
 chmod +x ${CurrentDIR}/remove.sh ${CurrentDIR}/run.sh
+
+run.sh
