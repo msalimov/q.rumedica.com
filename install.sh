@@ -503,7 +503,7 @@ msalimov/local:latest" >> ${CurrentDIR}/run.sh
 # --user $(id -u ${QSubdomain}) \
 
 echo "docker run -dt --rm \
---mount type=bind,source=${$(pwd)}/step/,target=/home/step/ \
+--mount type=bind,source=$(pwd)/step/,target=/home/step/ \
 --network ${QSubdomain} --ip ${ca_ip} \
 --name ca \
 smallstep/step-ca" >> ${CurrentDIR}/run.sh
