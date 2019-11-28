@@ -476,11 +476,18 @@ $TTL 1d     ; 1 week
 ' > $(pwd)/var/lib/bind/${QNetARPA}.zone
 fi
 if [ ! -d "$(pwd)/step/" ] ; then
-    mkdir -p $(pwd)/step/
+    mkdir -p $(pwd)/step/secrets/
+    echo 
 fi
-
+openssl rand -base64 14 > $(pwd)/step/secrets/password
+ca_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
 # chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
+docker run -d --rm \
+--mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
+--network $QSubdomain --ip $cacli_ip \
+--name cacli \
+smallstep/step-cli ${ca_cmd}
 
 echo "#!/bin/bash" > ${CurrentDIR}/run.sh
 echo "docker run  -dt --rm \
@@ -494,12 +501,6 @@ echo "docker run  -dt --rm \
 msalimov/local:latest" >> ${CurrentDIR}/run.sh
 # --user $(id -u ${QSubdomain}) \
 
-echo "docker run -dt --rm \
---mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
---network $QSubdomain \
---ip $cacli_ip \
---name cacli \
-smallstep/step-cli" >> ${CurrentDIR}/run.sh
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo "docker stop cacli 
