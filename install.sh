@@ -510,7 +510,7 @@ echo "docker run -dt --rm \
 smallstep/step-ca" >> ${CurrentDIR}/run.sh
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
-echo "docker stop cacli 
+echo "docker stop ca
 docker stop localnet
 docker network rm ${QSubdomain}
 userdel -r ${QSubdomain}
