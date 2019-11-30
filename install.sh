@@ -490,8 +490,7 @@ docker run -d --rm \
 --user root \
 smallstep/step-cli ${ca_cmd}
 
-echo "#!/bin/bash" > ${CurrentDIR}/run.sh
-echo "docker run  -dt --rm \
+runlocal="alias runlocal='docker run  -dt --rm \
 --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
 --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
 --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
@@ -499,15 +498,28 @@ echo "docker run  -dt --rm \
 --network $QSubdomain \
 --ip $dns_ip \
 --name localnet \
-msalimov/local:latest" >> ${CurrentDIR}/run.sh
+msalimov/local:latest'"
+
 # --user $(id -u ${QSubdomain}) \
 
-echo "docker run -dt --rm \
+runca="alias runca='docker run -dt --rm \
 --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
 --network ${QSubdomain} --ip ${ca_ip} \
 --user root \
 --name ca \
-smallstep/step-ca" >> ${CurrentDIR}/run.sh
+smallstep/step-ca'"
+
+runcli="alias runcli='docker run -dt --rm \
+--mount type=bind,source=$(pwd)/step/,target=/home/step/ \
+--network ${QSubdomain} --ip ${ca_ip} \
+--user root \
+--name ca \
+smallstep/step-cli'"
+
+$(runlocal)
+$(runca)
+$(runcli)
+
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo "docker stop ca
