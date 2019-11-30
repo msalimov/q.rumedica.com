@@ -483,12 +483,93 @@ openssl rand -base64 14 > $(pwd)/step/secrets/password
 ca_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
 # chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
-docker run -d --rm \
---mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
---network $QSubdomain --ip $cacli_ip \
---name cacli \
+# docker run -d --rm \
+# --mount type=bind,source="$(pwd)"/step/,target=/home/step/ \
+# --network $QSubdomain --ip $cacli_ip \
+# --name cacli \
+# --user root \
+# smallstep/step-cli ${ca_cmd}
+
+system=$(ps -p 1 | tail -1)
+system=${system##*" "}
+if [ $system -eq "systemd" ] 
+then
+echo "
+[Unit]
+Description=rumedica localnet service
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=docker run  -dt --rm \
+--mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
+--mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
+--mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
+--mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
+--network $QSubdomain \
+--ip $dns_ip \
+--name localnet \
+msalimov/local:latest
+
+[Install]
+WantedBy=default.target" > /etc/systemd/system/rumedica.localnet.service
+
+systemctl enable rumedica.localnet
+systemctl rumedica.localnet start
+
+echo "
+[Unit]
+Description=rumedica CA service
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=docker run -dt --rm \
+--mount type=bind,source=$(pwd)/step/,target=/home/step/ \
+--network ${QSubdomain} --ip ${ca_ip} \
 --user root \
-smallstep/step-cli ${ca_cmd}
+--name ca \
+smallstep/step-ca
+
+[Install]
+WantedBy=default.target" > /etc/systemd/system/rumedica.CA.service
+
+systemctl enable rumedica.CA
+systemctl rumedica.CA start
+
+echo "
+[Unit]
+Description=rumedica CLI service
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=docker run -dt --rm \
+--mount type=bind,source=$(pwd)/step/,target=/home/step/ \
+--network ${QSubdomain} --ip ${ca_ip} \
+--user root \
+--name ca \
+smallstep/step-cli
+
+[Install]
+WantedBy=default.target" > /etc/systemd/system/rumedica.cli.service
+
+systemctl enable rumedica.cli
+systemctl rumedica.cli start
+
+else
 
 runlocal="alias runlocal='docker run  -dt --rm \
 --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
@@ -516,10 +597,24 @@ runcli="alias runcli='docker run -dt --rm \
 --name ca \
 smallstep/step-cli'"
 
-$(runlocal)
-$(runca)
-$(runcli)
+bash -c $runlocal
+bash -c $runca
+bash -c $runcli
 
+if [ -f "/etc/bashrc" ]
+then
+    echo $runlocal >> /etc/bashrc
+    echo $runcli >> /etc/bashrc
+    echo $runca >> /etc/bashrc
+fi
+
+if [ -f "/etc/bash.bashrc" ]
+then
+    echo $runlocal >> /etc/bash.bashrc
+    echo $runca >> /etc/bash.bashrc
+    echo $runcli >> /etc/bash.bashrc
+fi
+fi
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo "docker stop ca
@@ -528,6 +623,3 @@ docker network rm ${QSubdomain}
 userdel -r ${QSubdomain}
 groupdel ${QSubdomain}" >> ${CurrentDIR}/remove.sh
 
-chmod +x ${CurrentDIR}/remove.sh ${CurrentDIR}/run.sh
-
-./run.sh
