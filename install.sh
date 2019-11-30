@@ -240,7 +240,7 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
-        removecmd="userdel -r ${QSubdomain}"\n"groupdel ${QSubdomain}"\n$removecmd
+        removecmd="userdel -r ${QSubdomain}\ngroupdel ${QSubdomain}\n"$removecmd
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
@@ -341,7 +341,7 @@ then
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    removecmd="docker network rm ${QSubdomain}"\n$removecmd
+    removecmd="docker network rm ${QSubdomain}\n"$removecmd
 fi
 
 if [[ ! -d "${pwd}/etc/bind/" ]]; then
@@ -519,7 +519,7 @@ case  $system in
         systemctl enable rumedica.localnet
         systemctl start rumedica.localnet 
 
-        removecmd=$removecmd\n"systemctl stop rumedica.localnet"\n"systemctl disable rumedica.localnet"\n"rm etc/systemd/system/rumedica.localnet.service"
+        removecmd="systemctl stop rumedica.localnet\nsystemctl disable rumedica.localnet\nrm etc/systemd/system/rumedica.localnet.service\n"$removecmd
 
         echo "
         [Unit]
@@ -544,7 +544,7 @@ case  $system in
 
         systemctl enable rumedica.cli
         systemctl rumedica.cli start
-        removecmd=$removecmd\n"systemctl stop rumedica.cli"\n"systemctl disable rumedica.cli"\n"rm etc/systemd/system/rumedica.cli.service"
+        removecmd="systemctl stop rumedica.cli\nsystemctl disable rumedica.cli\nrm etc/systemd/system/rumedica.cli.service\n"$removecmd
 
         echo "
         [Unit]
@@ -569,7 +569,7 @@ case  $system in
 
         systemctl enable rumedica.CA
         systemctl rumedica.CA start
-        removecmd=$removecmd\n"systemctl stop rumedica.CA"\n"systemctl disable rumedica.CA"\n"rm etc/systemd/system/rumedica.CA.service"
+        removecmd="systemctl stop rumedica.CA\nsystemctl disable rumedica.CA\nrm etc/systemd/system/rumedica.CA.service\n"$removecmd
 
         ;;
     *)  runlocal="alias runlocal='docker run  -dt --rm \
@@ -619,4 +619,4 @@ esac
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo $removecmd >> ${CurrentDIR}/remove.sh
-
+chmod +x ${CurrentDIR}/remove.sh
