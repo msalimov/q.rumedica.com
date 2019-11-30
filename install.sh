@@ -1,6 +1,6 @@
 
 #!/bin/bash
-
+removecmd=""
 ReservedIPs=""
 CurrentDIR=$(cd `dirname $0` && pwd)
 function valid_ip()
@@ -240,6 +240,7 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
+        removecmd="userdel -r ${QSubdomain}"\n"groupdel ${QSubdomain}"\n$removecmd
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
@@ -340,10 +341,7 @@ then
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    if [ -z "$?" ]
-    then
-        net_created=1
-    fi
+    removecmd="docker network rm ${QSubdomain}"\n$removecmd
 fi
 
 if [[ ! -d "${pwd}/etc/bind/" ]]; then
@@ -519,7 +517,9 @@ case  $system in
         WantedBy=default.target" > /etc/systemd/system/rumedica.localnet.service
 
         systemctl enable rumedica.localnet
-        systemctl rumedica.localnet start
+        systemctl start rumedica.localnet 
+
+        removecmd=$removecmd\n"systemctl stop rumedica.localnet"\n"systemctl disable rumedica.localnet"\n"rm etc/systemd/system/rumedica.localnet.service"
 
         echo "
         [Unit]
@@ -544,6 +544,7 @@ case  $system in
 
         systemctl enable rumedica.cli
         systemctl rumedica.cli start
+        removecmd=$removecmd\n"systemctl stop rumedica.cli"\n"systemctl disable rumedica.cli"\n"rm etc/systemd/system/rumedica.cli.service"
 
         echo "
         [Unit]
@@ -568,6 +569,8 @@ case  $system in
 
         systemctl enable rumedica.CA
         systemctl rumedica.CA start
+        removecmd=$removecmd\n"systemctl stop rumedica.CA"\n"systemctl disable rumedica.CA"\n"rm etc/systemd/system/rumedica.CA.service"
+
         ;;
     *)  runlocal="alias runlocal='docker run  -dt --rm \
         --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
@@ -615,9 +618,5 @@ case  $system in
 esac
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
-echo "docker stop ca
-docker stop localnet
-docker network rm ${QSubdomain}
-userdel -r ${QSubdomain}
-groupdel ${QSubdomain}" >> ${CurrentDIR}/remove.sh
+echo $removecmd >> ${CurrentDIR}/remove.sh
 
