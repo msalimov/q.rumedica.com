@@ -240,7 +240,9 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
-        removecmd="userdel -r ${QSubdomain}\ngroupdel ${QSubdomain}\n"$removecmd
+        removecmd="userdel -r ${QSubdomain}
+        groupdel ${QSubdomain}\
+        ${removecmd}"
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
@@ -341,7 +343,8 @@ then
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    removecmd="docker network rm ${QSubdomain}\n"$removecmd
+    removecmd="docker network rm ${QSubdomain}
+    ${removecmd}"
 fi
 
 if [[ ! -d "${pwd}/etc/bind/" ]]; then
@@ -519,7 +522,11 @@ case  $system in
         systemctl enable rumedica.localnet
         systemctl start rumedica.localnet 
 
-        removecmd="systemctl stop rumedica.localnet\nsystemctl disable rumedica.localnet\nrm etc/systemd/system/rumedica.localnet.service\n"$removecmd
+        removecmd="
+        systemctl stop rumedica.localnet
+        systemctl disable rumedica.localnet
+        rm etc/systemd/system/rumedica.localnet.service
+        $removecmd"
 
         echo "
         [Unit]
@@ -544,7 +551,11 @@ case  $system in
 
         systemctl enable rumedica.cli
         systemctl rumedica.cli start
-        removecmd="systemctl stop rumedica.cli\nsystemctl disable rumedica.cli\nrm etc/systemd/system/rumedica.cli.service\n"$removecmd
+        removecmd="
+        systemctl stop rumedica.cli
+        systemctl disable rumedica.cli
+        rm etc/systemd/system/rumedica.cli.service
+        ${removecmd}"
 
         echo "
         [Unit]
@@ -569,7 +580,11 @@ case  $system in
 
         systemctl enable rumedica.CA
         systemctl rumedica.CA start
-        removecmd="systemctl stop rumedica.CA\nsystemctl disable rumedica.CA\nrm etc/systemd/system/rumedica.CA.service\n"$removecmd
+        removecmd="
+        systemctl stop rumedica.CA
+        systemctl disable rumedica.CA
+        rm etc/systemd/system/rumedica.CA.service
+        ${removecmd}"
 
         ;;
     *)  runlocal="alias runlocal='docker run  -dt --rm \
