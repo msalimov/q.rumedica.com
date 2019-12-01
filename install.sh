@@ -240,11 +240,10 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
-
-        read -r -d '' rcmd <<- EOM
-            userdel -r ${QSubdomain}
-            groupdel ${QSubdomain} 
-        EOM
+        echo "
+        userdel -r ${QSubdomain}
+        groupdel ${QSubdomain} 
+        " > ${CurrentDIR}/remove.sh
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
@@ -345,8 +344,8 @@ then
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    removecmd="docker network rm ${QSubdomain}
-    ${removecmd}"
+    $(echo "docker network rm ${QSubdomain}
+    " | cat ${CurrentDIR}/remove.sh) >> ${CurrentDIR}/remove.sh
 fi
 
 if [[ ! -d "${pwd}/etc/bind/" ]]; then
@@ -524,11 +523,11 @@ case  $system in
         systemctl enable rumedica.localnet
         systemctl start rumedica.localnet 
 
-        removecmd="
+        $(echo "
         systemctl stop rumedica.localnet
         systemctl disable rumedica.localnet
         rm etc/systemd/system/rumedica.localnet.service
-        $removecmd"
+        " | cat ${CurrentDIR}/remove.sh})>>${CurrentDIR}/remove.sh
 
         echo "
         [Unit]
