@@ -344,8 +344,8 @@ then
         -o macvlan_mode=bridge \
         -o parent=$iface \
         ${QSubdomain}
-    $(echo "docker network rm ${QSubdomain}
-    " | cat ${CurrentDIR}/remove.sh) >> ${CurrentDIR}/remove.sh
+    removecmd="docker network rm ${QSubdomain}\n
+    ${removecmd}"
 fi
 
 if [[ ! -d "${pwd}/etc/bind/" ]]; then
@@ -526,7 +526,7 @@ case  $system in
         removecmd="
         systemctl stop rumedica.localnet\n
         systemctl disable rumedica.localnet\n
-        rm etc/systemd/system/rumedica.localnet.service\n
+        rm /etc/systemd/system/rumedica.localnet.service\n
         ${removecmd}"
 
         echo "
@@ -555,7 +555,7 @@ case  $system in
         removecmd="
         systemctl stop rumedica.cli\n
         systemctl disable rumedica.cli\n
-        rm etc/systemd/system/rumedica.cli.service\n
+        rm /etc/systemd/system/rumedica.cli.service\n
         ${removecmd}"
 
         echo "
@@ -584,7 +584,7 @@ case  $system in
         removecmd="
         systemctl stop rumedica.CA\n
         systemctl disable rumedica.CA\n
-        rm etc/systemd/system/rumedica.CA.service\n
+        rm /etc/systemd/system/rumedica.CA.service\n
         ${removecmd}"
 
         ;;
