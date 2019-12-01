@@ -240,10 +240,10 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
-        echo "
-        userdel -r ${QSubdomain}
-        groupdel ${QSubdomain} 
-        " > ${CurrentDIR}/remove.sh
+        removecmd="
+        userdel -r ${QSubdomain}\n
+        groupdel ${QSubdomain}\n
+        "${removecmd}
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
@@ -523,11 +523,11 @@ case  $system in
         systemctl enable rumedica.localnet
         systemctl start rumedica.localnet 
 
-        $(echo "
-        systemctl stop rumedica.localnet
-        systemctl disable rumedica.localnet
-        rm etc/systemd/system/rumedica.localnet.service
-        " | cat ${CurrentDIR}/remove.sh})>>${CurrentDIR}/remove.sh
+        removecmd="
+        systemctl stop rumedica.localnet\n
+        systemctl disable rumedica.localnet\n
+        rm etc/systemd/system/rumedica.localnet.service\n
+        ${removecmd}"
 
         echo "
         [Unit]
@@ -553,9 +553,9 @@ case  $system in
         systemctl enable rumedica.cli
         systemctl rumedica.cli start
         removecmd="
-        systemctl stop rumedica.cli
-        systemctl disable rumedica.cli
-        rm etc/systemd/system/rumedica.cli.service
+        systemctl stop rumedica.cli\n
+        systemctl disable rumedica.cli\n
+        rm etc/systemd/system/rumedica.cli.service\n
         ${removecmd}"
 
         echo "
@@ -582,9 +582,9 @@ case  $system in
         systemctl enable rumedica.CA
         systemctl rumedica.CA start
         removecmd="
-        systemctl stop rumedica.CA
-        systemctl disable rumedica.CA
-        rm etc/systemd/system/rumedica.CA.service
+        systemctl stop rumedica.CA\n
+        systemctl disable rumedica.CA\n
+        rm etc/systemd/system/rumedica.CA.service\n
         ${removecmd}"
 
         ;;
@@ -634,5 +634,5 @@ case  $system in
 esac
 
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
-echo $removecmd >> ${CurrentDIR}/remove.sh
+echo -e $removecmd >> ${CurrentDIR}/remove.sh
 chmod +x ${CurrentDIR}/remove.sh
