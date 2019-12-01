@@ -240,9 +240,11 @@ case "${unameOut}" in
         DefaultGateway=$(printf "%d." $(echo $DefaultGateway | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         DefaultNetmask=$(printf "%d." $(echo $DefaultNetmask | sed 's/../0x& /g' | tr ' ' '\n' | tac) | sed 's/\.$/\n/')
         useradd -m  -U ${QSubdomain}
-        removecmd="userdel -r ${QSubdomain}
-        groupdel ${QSubdomain}\
-        ${removecmd}"
+
+        read -r -d '' rcmd <<- EOM
+            userdel -r ${QSubdomain}
+            groupdel ${QSubdomain} 
+        EOM
         cd /home/${QSubdomain}
        ;;
     Darwin*)    
