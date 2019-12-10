@@ -519,7 +519,6 @@ case  $system in
         --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
         --network ${QSubdomain} \
         --ip ${dns_ip} \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --name rumedica_localnet \
         msalimov/local:latest
@@ -528,7 +527,6 @@ case  $system in
         WantedBy=default.target" > /etc/systemd/system/rumedica.localnet.service
 
         systemctl enable rumedica.localnet
-        systemctl start rumedica.localnet 
 
         removecmd="
         systemctl stop rumedica.localnet\n
@@ -560,7 +558,6 @@ case  $system in
         WantedBy=default.target" > /etc/systemd/system/rumedica.cli.service
 
         systemctl enable rumedica.cli
-        systemctl rumedica.cli start
         removecmd="
         systemctl stop rumedica.cli\n
         systemctl disable rumedica.cli\n
@@ -598,6 +595,10 @@ case  $system in
         rm /etc/systemd/system/rumedica.CA.service\n
         ${removecmd}"
 
+        systemctl daemon-reload
+        systemctl start rumedica.localnet 
+        systemctl rumedica.cli start
+
         ;;
     *)  runlocal="alias runlocal='docker run  -dt --rm \
         --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
@@ -631,9 +632,9 @@ case  $system in
         --name ca \
         smallstep/step-cli'"
 
-        bash -c $runlocal
-        bash -c $runca
-        bash -c $runcli
+        $((runlocal))
+        $((runca))
+        $((runcli))
 
         CAStartCMD=$runca
 
