@@ -487,7 +487,7 @@ if [ ! -d "$(pwd)/step/" ] ; then
     cli_cmd="step ca "
 fi
 openssl rand -base64 14 > $(pwd)/step/secrets/password
-ca_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
+cainit_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
 # chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
 # docker run -d --rm \
@@ -551,7 +551,6 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_cli \
@@ -583,7 +582,6 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_ca \
@@ -608,7 +606,6 @@ case  $system in
         --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
         --network ${QSubdomain} \
         --ip ${dns_ip} \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
         --name localnet \
@@ -620,7 +617,6 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
         --name ca \
@@ -630,7 +626,6 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${cacli_ip} \
         --user root \
-        --domainname ${QSubdomain}.rumedica.com \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
         --name ca \
@@ -656,7 +651,9 @@ case  $system in
             echo $runcli >> /etc/bash.bashrc
         fi
 esac
-
+docker exec rumedica_cli ${cainit_cmd}
+docker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
+$((CAStartCMD))
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo -e $removecmd >> ${CurrentDIR}/remove.sh
 chmod +x ${CurrentDIR}/remove.sh
