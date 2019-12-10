@@ -524,14 +524,14 @@ case  $system in
         msalimov/local:latest
 
         [Install]
-        WantedBy=default.target" > /etc/systemd/system/rumedica.localnet.service
+        WantedBy=default.target" > /etc/systemd/system/rumedica_localnet.service
 
-        systemctl enable rumedica.localnet
+        systemctl enable rumedica_localnet
 
         removecmd="
-        systemctl stop rumedica.localnet\n
-        systemctl disable rumedica.localnet\n
-        rm /etc/systemd/system/rumedica.localnet.service\n
+        systemctl stop rumedica_localnet\n
+        systemctl disable rumedica_localnet\n
+        rm /etc/systemd/system/rumedica_localnet.service\n
         ${removecmd}"
 
         echo "
@@ -555,13 +555,13 @@ case  $system in
         smallstep/step-cli
 
         [Install]
-        WantedBy=default.target" > /etc/systemd/system/rumedica.cli.service
+        WantedBy=default.target" > /etc/systemd/system/rumedica_cli.service
 
-        systemctl enable rumedica.cli
+        systemctl enable rumedica_cli
         removecmd="
-        systemctl stop rumedica.cli\n
-        systemctl disable rumedica.cli\n
-        rm /etc/systemd/system/rumedica.cli.service\n
+        systemctl stop rumedica_cli\n
+        systemctl disable rumedica_cli\n
+        rm /etc/systemd/system/rumedica_cli.service\n
         ${removecmd}"
 
         echo "
@@ -585,19 +585,19 @@ case  $system in
         smallstep/step-ca
 
         [Install]
-        WantedBy=default.target" > /etc/systemd/system/rumedica.CA.service
+        WantedBy=default.target" > /etc/systemd/system/rumedica_ca.service
 
-        systemctl enable rumedica.CA
-        CAStartCMD="systemctl rumedica.CA start"
+        systemctl enable rumedica_ca
+        CAStartCMD="systemctl start rumedica_ca"
         removecmd="
-        systemctl stop rumedica.CA\n
-        systemctl disable rumedica.CA\n
-        rm /etc/systemd/system/rumedica.CA.service\n
+        systemctl stop rumedica_ca\n
+        systemctl disable rumedica_ca\n
+        rm /etc/systemd/system/rumedica_ca.service\n
         ${removecmd}"
 
         systemctl daemon-reload
-        systemctl start rumedica.localnet 
-        systemctl rumedica.cli start
+        systemctl start rumedica_localnet 
+        systemctl start rumedica_cli
 
         ;;
     *)  runlocal="alias runlocal='docker run  -dt --rm \
