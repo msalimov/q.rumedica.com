@@ -1,6 +1,7 @@
 
 #!/bin/bash
 removecmd=""
+CAStartCMD=""
 ReservedIPs=""
 CurrentDIR=$(cd `dirname $0` && pwd)
 function valid_ip()
@@ -24,7 +25,7 @@ function valid_ip()
 CalcQNet() {
     declare -a netaddress[4] netmask[4] netbroadcast[4] result[6]
     local netcidr=0
-    local netarpa="in-addr.arpa.net"
+    local netarpa="in-addr.arpa"
     local i=0
     local maxhost=0 maxhostEXP=0
     old_IFS=$IFS
@@ -357,12 +358,20 @@ include "/etc/bind/rndc.key";
 options {
     directory "/var/lib/bind";
     listen-on { any; };
-    listen-on-v6 { any; };
+ #   listen-on-v6 { any; };
     allow-query { any; };
-    allow-transfer { none; };
-    allow-update { none; };
-    allow-recursion { none; };
-    recursion no;
+ #   allow-transfer { none; };
+ #   allow-update { none; };
+ #   allow-recursion { none; };
+ #   recursion no;
+ #   dnssec-enable yes;
+ #   dnssec-validation yes;
+ #   dnssec-lookaside auto;
+
+    forwarders {
+        8.8.8.8;
+        8.8.4.4;
+    };
 };
 controls {
         inet 127.0.0.1 allow { localhost; } keys { "'$QSubdomain'"; };
@@ -392,10 +401,6 @@ options {
         default-key "'$QSubdomain'";
         default-server 127.0.0.1;
         default-port 953;
-        forwarders {
-            8.8.8.8;
-            8.8.4.4;
-        };
 };
     '>$(pwd)/etc/bind/rndc.conf
 fi
@@ -465,21 +470,21 @@ if [ ! -f "$(pwd)/var/lib/bind/${QNetARPA}" ]; then
 echo '
 $TTL 1d     ; 1 week
 @  IN  SOA    ns1.'$QSubdomain'.rumedica.com. '$QSubdomain'.rumedica.com. (
-        2016010101      ; serial
+        2019010116      ; serial
         28800           ; refresh (8 hours)
         7200            ; retry (2 hours)
         2419200         ; expire (4 weeks)
         86400           ; minimum (1 day)
                                 )
-@		        IN	    NS	               ns1.'$QSubdomain'.rumedica.com.
-'${dns_ip##*.}'	IN	    PTR                ns1.'$QSubdomain'.rumedica.com.
-'${ca_ip##*.}'    IN      PTR                ca.'${QSubdomain}'.rumedica.com.
-'${cacli_ip##*.}' IN      PTR                cacli.'${QSubdomain}'.rumedica.com.
+@   IN	    NS  ns1.'$QSubdomain'.rumedica.com.
+'${dns_ip##*.}' IN  PTR ns1.'$QSubdomain'.rumedica.com.
+'${ca_ip##*.}'  IN  PTR ca.'${QSubdomain}'.rumedica.com.
+'${cacli_ip##*.}'   IN  PTR cacli.'${QSubdomain}'.rumedica.com.
 ' > $(pwd)/var/lib/bind/${QNetARPA}.zone
 fi
 if [ ! -d "$(pwd)/step/" ] ; then
     mkdir -p $(pwd)/step/secrets/
-    echo 
+    cli_cmd="step ca "
 fi
 openssl rand -base64 14 > $(pwd)/step/secrets/password
 ca_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
@@ -512,8 +517,10 @@ case  $system in
         --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
         --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
         --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
-        --network $QSubdomain \
-        --ip $dns_ip \
+        --network ${QSubdomain} \
+        --ip ${dns_ip} \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
         --name rumedica_localnet \
         msalimov/local:latest
 
@@ -544,6 +551,9 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
+        --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_cli \
         smallstep/step-cli
 
@@ -573,6 +583,9 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
+        --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_ca \
         smallstep/step-ca
 
@@ -580,7 +593,7 @@ case  $system in
         WantedBy=default.target" > /etc/systemd/system/rumedica.CA.service
 
         systemctl enable rumedica.CA
-        systemctl rumedica.CA start
+        CAStartCMD="systemctl rumedica.CA start"
         removecmd="
         systemctl stop rumedica.CA\n
         systemctl disable rumedica.CA\n
@@ -593,8 +606,11 @@ case  $system in
         --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
         --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
         --mount type=bind,source="$(pwd)"/var/lib/dhcp/,target=/var/lib/dhcp/ \
-        --network $QSubdomain \
-        --ip $dns_ip \
+        --network ${QSubdomain} \
+        --ip ${dns_ip} \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
+        --dns-search ${QSubdomain}.rumedica.com \
         --name localnet \
         msalimov/local:latest'"
 
@@ -604,19 +620,27 @@ case  $system in
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
+        --dns-search ${QSubdomain}.rumedica.com \
         --name ca \
         smallstep/step-ca'"
 
         runcli="alias runcli='docker run -dt --rm \
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
-        --network ${QSubdomain} --ip ${ca_ip} \
+        --network ${QSubdomain} --ip ${cacli_ip} \
         --user root \
+        --domainname ${QSubdomain}.rumedica.com \
+        --dns ${dns_ip} \
+        --dns-search ${QSubdomain}.rumedica.com \
         --name ca \
         smallstep/step-cli'"
 
         bash -c $runlocal
         bash -c $runca
         bash -c $runcli
+
+        CAStartCMD=$runca
 
         if [ -f "/etc/bashrc" ]
         then
