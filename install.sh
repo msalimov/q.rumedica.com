@@ -513,7 +513,7 @@ case  $system in
         Restart=always
         ExecStartPre=-/usr/bin/docker exec %n stop
         ExecStartPre=-/usr/bin/docker rm %n
-        ExecStart=docker run --rm \
+        ExecStart=docker run -t --rm \
         --mount type=bind,source="$(pwd)"/etc/bind/,target=/etc/bind/ \
         --mount type=bind,source="$(pwd)"/etc/dhcp/,target=/etc/dhcp/ \
         --mount type=bind,source="$(pwd)"/var/lib/bind/,target=/var/lib/bind/ \
@@ -547,7 +547,7 @@ case  $system in
         Restart=always
         ExecStartPre=-/usr/bin/docker exec %n stop
         ExecStartPre=-/usr/bin/docker rm %n
-        ExecStart=docker run --rm \
+        ExecStart=docker run -t --rm \
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${cacli_ip} \
         --user root \
@@ -577,7 +577,7 @@ case  $system in
         Restart=always
         ExecStartPre=-/usr/bin/docker exec %n stop
         ExecStartPre=-/usr/bin/docker rm %n
-        ExecStart=docker run --rm \
+        ExecStart=docker run -t --rm \
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
         --network ${QSubdomain} --ip ${ca_ip} \
         --user root \
