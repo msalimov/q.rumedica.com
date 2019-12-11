@@ -487,9 +487,8 @@ if [ ! -d "$(pwd)/step/" ] ; then
     cli_cmd="step ca "
 fi
 openssl rand -base64 14 > $(pwd)/step/secrets/password
-cainit_cmd="
-step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@${QSubdomain}.rumedica.com -password-file=/home/step/secrets/password && 
-step ca provisioner add ${QSubdomain} -type=ACME"
+cainit_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@${QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
+
 # chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
 # docker run -d --rm \
@@ -659,6 +658,7 @@ case  $system in
 esac
 sleep 5
 docker exec rumedica_cli ${cainit_cmd}
+dcoker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
 $((CAStartCMD))
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo -e $removecmd >> ${CurrentDIR}/remove.sh
