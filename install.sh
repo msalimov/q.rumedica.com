@@ -487,7 +487,7 @@ if [ ! -d "$(pwd)/step/" ] ; then
     cli_cmd="step ca "
 fi
 openssl rand -base64 14 > $(pwd)/step/secrets/password
-cainit_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password"
+cainit_cmd="step ca init -name=${QSubdomain} -dns=ca.${QSubdomain}.rumedica.com -address=${ca_IP}:443 -provisioner=support@{$QSubdomain}.rumedica.com -password-file=/home/step/secrets/password && step ca provisioner add ${QSubdomain} -type=ACME"
 # chown -R ${QSubdomain}:${QSubdomain} $(pwd)
 usermod -a -G ${QSubdomain} root
 # docker run -d --rm \
@@ -594,7 +594,7 @@ case  $system in
         systemctl disable rumedica_ca\n
         rm /etc/systemd/system/rumedica_ca.service\n
         ${removecmd}"
-
+        t0=$(date "+%Y-%m-%dT%H:%M:%S")
         systemctl daemon-reload
         systemctl start rumedica_localnet 
         systemctl start rumedica_cli
@@ -651,9 +651,12 @@ case  $system in
             echo $runca >> /etc/bash.bashrc
             echo $runcli >> /etc/bash.bashrc
         fi
+        t0=$(date "+%Y-%m-%dT%H:%M:%S")
+        runlocal
+        runcli
 esac
+sleep 5
 docker exec rumedica_cli ${cainit_cmd}
-docker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
 $((CAStartCMD))
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo -e $removecmd >> ${CurrentDIR}/remove.sh
