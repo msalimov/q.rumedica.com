@@ -523,6 +523,7 @@ case  $system in
         --dns ${dns_ip} \
         --name rumedica_localnet \
         msalimov/local:latest
+        ExecStop=docker stop rumedica_localnet
 
         [Install]
         WantedBy=default.target" > /etc/systemd/system/rumedica_localnet.service
@@ -554,7 +555,7 @@ case  $system in
         --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_cli \
         smallstep/step-cli
-
+        ExecStop=docker stop rumedica_cli
         [Install]
         WantedBy=default.target" > /etc/systemd/system/rumedica_cli.service
 
@@ -584,7 +585,7 @@ case  $system in
         --dns-search ${QSubdomain}.rumedica.com \
         --name rumedica_ca \
         smallstep/step-ca
-
+        ExecStop=docker stop rumedica_ca
         [Install]
         WantedBy=default.target" > /etc/systemd/system/rumedica_ca.service
 
@@ -658,7 +659,7 @@ case  $system in
 esac
 sleep 5
 docker exec rumedica_cli ${cainit_cmd}
-dcoker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
+docker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
 $((CAStartCMD))
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo -e $removecmd >> ${CurrentDIR}/remove.sh
