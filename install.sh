@@ -548,7 +548,7 @@ case  $system in
         ExecStartPre=-/usr/bin/docker rm %n
         ExecStart=docker run -dt --rm \
         --mount type=bind,source=$(pwd)/step/,target=/home/step/ \
-        --network ${QSubdomain} --ip ${ca_ip} \
+        --network ${QSubdomain} --ip ${cacli_ip} \
         --user root \
         --dns ${dns_ip} \
         --dns-search ${QSubdomain}.rumedica.com \
