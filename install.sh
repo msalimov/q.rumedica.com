@@ -634,9 +634,9 @@ case  $system in
         --name ca \
         smallstep/step-cli'"
 
-        $((runlocal))
-        $((runca))
-        $((runcli))
+        $(${runlocal})
+        $(${runca})
+        $(${runcli})
 
         CAStartCMD=$runca
 
@@ -660,7 +660,7 @@ esac
 sleep 5
 docker exec rumedica_cli ${cainit_cmd}
 docker exec rumedica_cli step ca provisioner add ${QSubdomain} -type=ACME
-$((CAStartCMD))
+$(${CAStartCMD})
 echo "#!/bin/bash" > ${CurrentDIR}/remove.sh
 echo -e $removecmd >> ${CurrentDIR}/remove.sh
 chmod +x ${CurrentDIR}/remove.sh
